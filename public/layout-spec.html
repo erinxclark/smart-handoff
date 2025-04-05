@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartHandoff – AI-Powered Design Handoff Tool</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    :root {
+      --primary: #5D5FEF;
+      --primary-light: #7879F1;
+      --primary-dark: #4A4ADB;
+      --secondary: #1E293B; 
+      --tertiary: #F8FAFC;
+      --accent: #0EA5E9;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --gray-50: #F9FAFB;
+      --gray-100: #F3F4F6;
+      --gray-200: #E5E7EB;
+      --gray-300: #D1D5DB;
+      --gray-400: #9CA3AF;
+      --gray-500: #6B7280;
+      --gray-600: #4B5563;
+      --gray-700: #374151;
+      --gray-800: #1F2937;
+      --gray-900: #111827;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      --radius-sm: 0.25rem;
+      --radius: 0.5rem;
+      --radius-md: 0.75rem;
+      --radius-lg: 1rem;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    
+    body {
+      background: linear-gradient(to right, var(--gray-50), var(--gray-100));
+      color: var(--gray-800);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    header {
+      background: linear-gradient(to right, var(--primary-dark), var(--primary));
+      padding: 24px 0;
+      box-shadow: var(--shadow-md);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .logo-icon {
+      background-color: white;
+      height: 40px;
+      width: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius);
+      font-weight: bold;
+      font-size: 20px;
+      color: var(--primary);
+    }
+    
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    
+    .main-container {
+      padding: 32px 24px;
+    }
+    
+    h1 {
+      color: white;
+      font-weight: 700;
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -0.025em;
+    }
+    
+    .subheading {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .input-section {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .input-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(to right, var(--primary), var(--accent));
+    }
+    
+    .form-group {
+      margin-bottom: 24px;
+    }
+    
+    .input-label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--gray-700);
+      font-size: 14px;
+    }
+    
+    .input-field {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius);
+      font-size: 15px;
+      transition: all 0.2s ease;
+      background-color: var(--gray-50);
+    }
+    
+    .input-field:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(93, 95, 239, 0.15);
+    }
+    
+    .input-field::placeholder {
+      color: var(--gray-400);
+    }
+    
+    .input-icon {
+      position: relative;
+    }
+    
+    .input-icon::before {
+      content: '🔗';
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      font-size: 16px;
+    }
+    
+    .input-icon .input-field {
+      padding-left: 40px;
+    }
+    
+    .button {
+      background: linear-gradient(to right, var(--primary), var(--primary-light));
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .button:hover {
+      box-shadow: var(--shadow);
+      transform: translateY(-1px);
+    }
+    
+    .button:active {
+      transform: translateY(0);
+    }
+
+    .button-outline {
+      background: white;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      box-shadow: none;
+    }
+    
+    .button-outline:hover {
+      background: var(--gray-50);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .success-section {
+      background: linear-gradient(to right, var(--success), #4ade80);
+      color: white;
+      padding: 16px 24px;
+      border-radius: var(--radius);
+      margin-bottom: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+    }
+    
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .section-title::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 20px;
+      background: var(--primary);
+      border-radius: 4px;
+    }
+    
+    .output-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-gap: 24px;
+      margin-bottom: 32px;
+    }
+    
+    .panel {
+      background-color: white;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      height: 400px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .panel-header {
+      background-color: var(--gray-50);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-200);
+      font-weight: 600;
+      color: var(--gray-800);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .panel-badge {
+      background-color: var(--primary-light);
+      color: white;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 500;
+    }
+    
+    .panel-content {
+      padding: 20px;
+      overflow: auto;
+      flex: 1;
+    }
+    
+    .file-tree {
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    .file-tree ul {
+      list-style-type: none;
+      padding-left: 20px;
+    }
+    
+    .file-tree li {
+      margin-bottom: 6px;
+      padding: 2px 0;
+    }
+    
+    .file-tree .folder:before {
+      content: "📁 ";
+    }
+    
+    .file-tree .file:before {
+      content: "📄 ";
+    }
+    
+    .file-tree li:hover {
+      background-color: var(--gray-100);
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+    }
+    
+    .figma-preview {
+      text-align: center;
+      padding: 20px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #F0F2F5;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23dddddd' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
+    .figma-preview img {
+      max-width: 100%;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      background-color: white;
+    }
+    
+    .preview-caption {
+      margin-top: 12px;
+      color: var(--gray-600);
+      font-style: italic;
+      background-color: white;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      display: inline-block;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .ai-output {
+      font-family: 'Fira Code', monospace;
+      white-space: pre-wrap;
+      background-color: var(--gray-50);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-size: 14px;
+      height: 100%;
+      overflow: auto;
+      color: var(--gray-800);
+      border: 1px solid var(--gray-200);
+    }
+    
+    .code-editor {
+      font-family: 'Fira Code', monospace;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius);
+      height: 100%;
+      background-color: #282c34;
+      color: #abb2bf;
+      font-size: 14px;
+      resize: none;
+      width: 100%;
+      padding: 16px;
+      line-height: 1.5;
+      outline: none;
+    }
+    
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-gap: 24px;
+      margin-bottom: 32px;
+    }
+    
+    .comparison-panel {
+      background-color: white;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    
+    .comparison-header {
+      background-color: var(--gray-50);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--gray-200);
+      font-weight: 600;
+      color: var(--gray-800);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .comparison-content {
+      padding: 20px;
+    }
+    
+    .comparison-panel img {
+      max-width: 100%;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+    }
+    
+    .tab-navigation {
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--gray-200);
+      margin-bottom: 20px;
+    }
+    
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--gray-600);
+      position: relative;
+      font-size: 14px;
+    }
+    
+    .tab.active {
+      color: var(--primary);
+    }
+    
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--primary);
+      border-radius: 2px 2px 0 0;
+    }
+    
+    .comparison-controls {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .visual-diff-container {
+      background-color: white;
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow);
+      margin-top: 24px;
+      display: none;
+    }
+
+    .visual-diff-container.active {
+      display: block;
+    }
+
+    .visual-diff-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 8px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .diff-item {
+      display: flex;
+      padding: 12px;
+      border-bottom: 1px solid var(--gray-200);
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .diff-item:last-child {
+      border-bottom: none;
+    }
+
+    .diff-badge {
+      background-color: var(--warning);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .diff-badge.high {
+      background-color: var(--danger);
+    }
+
+    .diff-badge.medium {
+      background-color: var(--warning);
+    }
+
+    .diff-badge.low {
+      background-color: var(--accent);
+    }
+
+    .diff-content {
+      flex: 1;
+    }
+
+    .diff-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .diff-description {
+      color: var(--gray-600);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Animation for the loading state */
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.6; }
+    }
+    
+    .pulse {
+      animation: pulse 1.5s infinite;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container header-content">
+      <div class="logo">
+        <div class="logo-icon">S</div>
+        <div class="logo-text">
+          <h1>SmartHandoff</h1>
+          <div class="subheading">AI-Powered Design Handoff Tool</div>
+        </div>
+      </div>
+    </div>
+  </header>
+  
+  <div class="container main-container">
+    <!-- Input Section - REAL CONTENT STRUCTURE -->
+    <div class="input-section">
+      <form>
+        <div class="form-group">
+          <label class="input-label" for="figma-link">Figma File Link</label>
+          <div class="input-icon">
+            <input type="text" class="input-field" id="figma-link" placeholder="https://www.figma.com/file/..." value="https://www.figma.com/file/PLACEHOLDER_LINK">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="input-label" for="figma-token">Figma Access Token</label>
+          <input type="text" class="input-field" id="figma-token" placeholder="figma_pat_..." value="figma_pat_PLACEHOLDER_TOKEN">
+        </div>
+        <button class="button" id="submit-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"></path>
+            <path d="m12 5 7 7-7 7"></path>
+          </svg>
+          Parse Figma File
+        </button>
+      </form>
+    </div>
+    
+    <!-- Success Section - PLACEHOLDER CONTENT -->
+    <div class="success-section">
+      <div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <strong>Figma File Loaded:</strong> Sample Design System
+      </div>
+      <div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <strong>Timestamp:</strong> April 4, 2025, 10:32 AM
+      </div>
+    </div>
+    
+    <!-- File Tree & Preview Section - PLACEHOLDER CONTENT -->
+    <div class="section-title">Design Assets</div>
+    <div class="output-grid">
+      <div class="panel">
+        <div class="panel-header">
+          Figma File Structure
+          <div class="panel-badge">24 Components</div>
+        </div>
+        <div class="panel-content">
+          <div class="file-tree">
+            <ul>
+              <li class="folder">Design System
+                <ul>
+                  <li class="folder">Components
+                    <ul>
+                      <li class="folder">Buttons
+                        <ul>
+                          <li class="file">Primary Button</li>
+                          <li class="file">Secondary Button</li>
+                          <li class="file">Tertiary Button</li>
+                        </ul>
+                      </li>
+                      <li class="folder">Cards
+                        <ul>
+                          <li class="file">Standard Card</li>
+                          <li class="file">Product Card</li>
+                        </ul>
+                      </li>
+                      <li class="folder">Navigation
+                        <ul>
+                          <li class="file">Header</li>
+                          <li class="file">Footer</li>
+                          <li class="file">Sidebar</li>
+                        </ul>
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="folder">Colors
+                    <ul>
+                      <li class="file">Primary</li>
+                      <li class="file">Secondary</li>
+                      <li class="file">Accent</li>
+                    </ul>
+                  </li>
+                  <li class="folder">Typography
+                    <ul>
+                      <li class="file">Headings</li>
+                      <li class="file">Body</li>
+                      <li class="file">Labels</li>
+                    </ul>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <div class="panel-header">
+          Figma Preview
+          <div class="panel-badge">Primary Button</div>
+        </div>
+        <div class="panel-content figma-preview">
+          <img src="/api/placeholder/450/240" alt="Figma Preview Placeholder">
+          <div class="preview-caption">Primary Button Component</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- AI Output & Code Editor Section - PLACEHOLDER CONTENT -->
+    <div class="section-title">AI Analysis & Code</div>
+    <div class="output-grid">
+      <div class="panel">
+        <div class="panel-header">
+          AI Generated Specs & Code
+          <div class="panel-badge">Auto-Generated</div>
+        </div>
+        <div class="panel-content">
+          <div class="tab-navigation">
+            <div class="tab active">Specs</div>
+            <div class="tab">CSS</div>
+            <div class="tab">React</div>
+          </div>
+          <div class="ai-output">
+# Primary Button Component Specs
+
+## Dimensions
+- Width: 120px
+- Height: 40px
+- Border Radius: 4px
+
+## Colors
+- Background: #5D5FEF
+- Hover: #4A4ADB
+- Text: #FFFFFF
+
+## Typography
+- Font: Inter
+- Size: 14px
+- Weight: 600
+- Line Height: 1.4
+
+## Spacing
+- Padding: 10px 16px
+- Icon Spacing: 8px
+
+## States
+- Default: opacity 1
+- Hover: background darkens 10%
+- Active: scale 0.98
+- Disabled: opacity 0.5
+
+## React Implementation:
+```jsx
+const PrimaryButton = ({ 
+  children, 
+  onClick, 
+  disabled = false,
+  leftIcon,
+  rightIcon,
+  ...props 
+}) => {
+  return (
+    <button
+      className="primary-button"
+      onClick={onClick}
+      disabled={disabled}
+      {...props}
+    >
+      {leftIcon && <span className="button-icon left">{leftIcon}</span>}
+      {children}
+      {rightIcon && <span className="button-icon right">{rightIcon}</span>}
+    </button>
+  );
+};
+```
+
+## CSS Implementation:
+```css
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  background-color: #5D5FEF;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+```</div>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <div class="panel-header">
+          Editable React Code
+          <div class="panel-badge">React + CSS</div>
+        </div>
+        <div class="panel-content" style="padding: 0;">
+          <textarea class="code-editor">import React from 'react';
+import './PrimaryButton.css';
+
+const PrimaryButton = ({ 
+  children, 
+  onClick, 
+  disabled = false,
+  leftIcon,
+  rightIcon,
+  ...props 
+}) => {
+  return (
+    <button
+      className="primary-button"
+      onClick={onClick}
+      disabled={disabled}
+      {...props}
+    >
+      {leftIcon && <span className="button-icon left">{leftIcon}</span>}
+      {children}
+      {rightIcon && <span className="button-icon right">{rightIcon}</span>}
+    </button>
+  );
+};
+
+export default PrimaryButton;</textarea>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Comparison Section - PLACEHOLDER CONTENT -->
+    <div class="section-title">Visual Comparison</div>
+    
+    <div class="comparison-controls">
+      <button class="button" id="compare-button" onclick="toggleVisualDiff()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        Compare Visuals with AI
+      </button>
+    </div>
+    
+    <div class="comparison">
+      <div class="comparison-panel">
+        <div class="comparison-header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+            <path d="M2 2l7.586 7.586"></path>
+            <circle cx="11" cy="11" r="2"></circle>
+          </svg>
+          Figma Design
+        </div>
+        <div class="comparison-content">
+          <img src="/api/placeholder/450/180" alt="Figma Design Placeholder">
+        </div>
+      </div>
+      <div class="comparison-panel">
+        <div class="comparison-header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="10 8 16 12 10 16 10 8"></polygon>
+          </svg>
+          React Rendering
+        </div>
+        <div class="comparison-content">
+          <img src="/api/placeholder/450/180" alt="React Rendering Placeholder">
+        </div>
+      </div>
+    </div>
+    
+    <!-- Visual Differences (initially hidden) - PLACEHOLDER CONTENT -->
+    <div class="visual-diff-container" id="visual-diff">
+      <div class="visual-diff-header">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        AI-Detected Visual Differences
+      </div>
+      
+      <div class="diff-item">
+        <div class="diff-badge high">High Priority</div>
+        <div class="diff-content">
+          <div class="diff-title">Incorrect Border Radius</div>
+          <div class="diff-description">The React implementation uses 4px border radius while the Figma design specifies 6px. This creates a noticeable difference in the button's appearance.</div>
+        </div>
+      </div>
+      
+      <div class="diff-item">
+        <div class="diff-badge medium">Medium Priority</div>
+        <div class="diff-content">
+          <div class="diff-title">Color Shade Mismatch</div>
+          <div class="diff-description">The primary button background color in React (#5D5FEF) is slightly lighter than the Figma design color (#4A4ADB). Consider updating the CSS with the exact color value.</div>
+        </div>
+      </div>
+      
+      <div class="diff-item">
+        <div class="diff-badge medium">Medium Priority</div>
+        <div class="diff-content">
+          <div class="diff-title">Text Size Difference</div>
+          <div class="diff-description">The font size in the React implementation (14px) is smaller than the Figma design (16px), making the text less prominent.</div>
+        </div>
+      </div>
+      
+      <div class="diff-item">
+        <div class="diff-
