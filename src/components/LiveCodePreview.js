@@ -12,84 +12,86 @@ const LiveCodePreview = ({ code, figmaPreviewUrl }) => {
   const transformCode = (code) => {
     if (!code) return '';
 
-    console.log('Original code:', code);
-    
     try {
-      // Extract the component code
-      const componentCode = code.trim();
-      
-      // Remove export default and import statements
-      let cleanCode = componentCode
+      // Clean the code
+      let cleanCode = code
         .replace(/export\s+default\s+/g, '')
         .replace(/import\s+.*?from\s+['"].*?['"];?/g, '')
-        .replace(/;\s*$/, '')
         .trim();
-      
-      console.log('Cleaned code:', cleanCode);
-      
-      // Debug check for React component pattern
-      const hasJSXReturn = cleanCode.includes('return (') || cleanCode.includes('return(');
-      if (!hasJSXReturn) {
-        console.warn('WARNING: Component may not have a proper JSX return statement');
-      }
-      
-      // Fix undefined variables in template literals (common in AI-generated code)
-      // Look for patterns like ${width} and provide default values
-      cleanCode = cleanCode
-        .replace(/\$\{width\}/g, '200')
-        .replace(/\$\{height\}/g, '200')
-        .replace(/\$\{([\w]+)\}/g, (match, varName) => {
-          console.log(`Found undefined variable in template literal: ${varName}, providing default value`);
-          // Provide default values for common properties
-          const defaults = {
-            width: '200',
-            height: '200',
-            borderRadius: '8',
-            padding: '16',
-            margin: '8',
-            fontSize: '16',
-            color: '#333333',
-            backgroundColor: '#ffffff',
-            borderWidth: '1',
-            borderStyle: 'solid',
-            borderColor: '#000000'
-          };
-          return defaults[varName] || '0';
-        });
-      
-      // Extract the component name - handle both function and const declaration patterns
-      let componentName = 'Component';
-      const constMatch = cleanCode.match(/const\s+([A-Za-z0-9_]+)\s*=/);
-      const functionMatch = cleanCode.match(/function\s+([A-Za-z0-9_]+)\s*\(/);
-      
-      if (constMatch) {
-        componentName = constMatch[1];
-        console.log(`Found component as const: ${componentName}`);
-      } else if (functionMatch) {
-        componentName = functionMatch[1];
-        console.log(`Found component as function: ${componentName}`);
-      } else {
-        // Default fallback
-        console.warn('Could not extract component name, using default:', componentName);
+
+      // Extract component name
+      const componentMatch = cleanCode.match(/(?:const|function)\s+(\w+)\s*=/);
+      const componentName = componentMatch ? componentMatch[1] : 'Component';
+
+      // Remove the usage part if it exists
+      cleanCode = cleanCode.split('// Usage')[0].trim();
+
+      // Handle component order and positioning
+      cleanCode = cleanCode.replace(/<div([^>]*)>/g, (match, attributes) => {
+        // Check if this is a group or frame
+        const isGroup = match.includes('data-group="true"');
+        const isFrame = match.includes('data-frame="true"');
         
-        // Try to create a minimal component if we couldn't find one
-        if (!cleanCode.includes('return') || !cleanCode.includes('(')) {
-          console.warn('Code does not appear to be a valid React component, creating a minimal wrapper');
-          cleanCode = `const Component = () => {
-  return (
-    <div style={{ width: '200px', height: '200px', backgroundColor: '#f0f0f0', border: '1px solid #ccc', borderRadius: '4px', padding: '16px' }}>
-      ${cleanCode.includes('<') ? cleanCode : `<div>${cleanCode || 'No valid JSX found'}</div>`}
-    </div>
-  );
-};`;
-          componentName = 'Component';
+        // Add position relative and z-index to maintain proper stacking
+        if (!attributes.includes('style=')) {
+          return `<div${attributes} style={{ 
+            position: 'relative', 
+            zIndex: 1,
+            ${isGroup ? "display: 'flex', flexDirection: 'column'," : ''}
+            ${isFrame ? "display: 'flex', flexDirection: 'column', padding: '16px'," : ''}
+          }}>`;
         }
-      }
-      
-      console.log('Extracted component name:', componentName);
-      
-      // Return the component code with a render call
-      return `${cleanCode}\n\nrender(<${componentName} />)`;
+        
+        // If style exists, ensure it has position relative and proper layout
+        return match.replace(/style=\{\{([^}]*)\}\}/, (styleMatch, styleContent) => {
+          let newStyle = styleContent;
+          if (!styleContent.includes('position:')) {
+            newStyle += ", position: 'relative', zIndex: 1";
+          }
+          if (isGroup && !styleContent.includes('display:')) {
+            newStyle += ", display: 'flex', flexDirection: 'column'";
+          }
+          if (isFrame && !styleContent.includes('display:')) {
+            newStyle += ", display: 'flex', flexDirection: 'column', padding: '16px'";
+          }
+          return `style={{${newStyle}}}`;
+        });
+      });
+
+      // Handle text elements to preserve font properties
+      cleanCode = cleanCode.replace(/<span([^>]*)>/g, (match, attributes) => {
+        if (!attributes.includes('style=')) {
+          return match;
+        }
+        
+        return match.replace(/style=\{\{([^}]*)\}\}/, (styleMatch, styleContent) => {
+          let newStyle = styleContent;
+          // Ensure font properties are preserved
+          if (!styleContent.includes('fontFamily:')) {
+            newStyle += ", fontFamily: 'inherit'";
+          }
+          if (!styleContent.includes('fontSize:')) {
+            newStyle += ", fontSize: 'inherit'";
+          }
+          if (!styleContent.includes('fontWeight:')) {
+            newStyle += ", fontWeight: 'inherit'";
+          }
+          if (!styleContent.includes('lineHeight:')) {
+            newStyle += ", lineHeight: 'inherit'";
+          }
+          if (!styleContent.includes('letterSpacing:')) {
+            newStyle += ", letterSpacing: 'inherit'";
+          }
+          return `style={{${newStyle}}}`;
+        });
+      });
+
+      // Return the complete code with proper syntax
+      return `
+${cleanCode}
+
+render(<${componentName} text="This is a test" />);
+`;
     } catch (error) {
       console.error('Error transforming code:', error);
       return `
@@ -112,7 +114,8 @@ const ErrorComponent = () => {
   );
 };
 
-render(<ErrorComponent />)`;
+render(<ErrorComponent />);
+`;
     }
   };
 
@@ -255,422 +258,85 @@ render(<ErrorComponent />)`;
   };
 
   return (
-    <div style={{ marginBottom: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-        <button
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#4f46e5',
-            color: 'white',
-            borderRadius: '4px',
-            border: 'none',
-            cursor: isComparing ? 'not-allowed' : 'pointer',
-            opacity: isComparing ? 0.7 : 1,
-          }}
-          onClick={handleCompare}
-          disabled={isComparing}
-        >
-          {isComparing ? 'Analyzing...' : 'Compare Visuals with AI'}
-        </button>
+    <div className="mt-6 p-4 bg-white rounded shadow w-full">
+      <h2 className="text-xl font-semibold mb-4">Preview Comparison</h2>
+      
+      <div className="grid grid-cols-2 gap-4">
+        {/* React Preview */}
+        <div className="border rounded p-4">
+          <h3 className="text-lg font-semibold mb-2">React Preview</h3>
+          <div ref={livePreviewRef} className="mt-2">
+            {code ? (
+              <LiveProvider 
+                code={transformCode(code)}
+                noInline={true}
+                scope={{ React }}
+              >
+                <div className="relative">
+                  <LiveError className="absolute top-0 left-0 right-0 bg-red-100 text-red-700 p-2 text-sm" />
+                  <LivePreview className="mt-8" />
+                </div>
+              </LiveProvider>
+            ) : (
+              <div className="text-gray-500">No code to preview</div>
+            )}
+          </div>
+        </div>
+
+        {/* Figma Preview */}
+        {figmaPreviewUrl && (
+          <div className="border rounded p-4">
+            <h3 className="text-lg font-semibold mb-2">Figma Preview</h3>
+            <div className="mt-2">
+              <img 
+                src={figmaPreviewUrl} 
+                alt="Figma Preview" 
+                className="w-full border rounded"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Comparison Controls */}
+      {figmaPreviewUrl && (
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={handleCompare}
+            disabled={isComparing}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+          >
+            {isComparing ? 'Comparing...' : 'Compare Visuals'}
+          </button>
+        </div>
+      )}
+
       {compareError && (
-        <div style={{
-          padding: '12px 16px',
-          backgroundColor: '#fee2e2',
-          color: '#b91c1c',
-          borderRadius: '4px',
-          marginBottom: '24px',
-          fontSize: '14px'
-        }}>
+        <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">
           {compareError}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        {/* Figma Preview */}
-        <div style={{ 
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ 
-            padding: '16px',
-            borderBottom: '1px solid #e5e7eb'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              Figma Design
-            </div>
-          </div>
-          <div style={{ padding: '16px' }}>
-            {figmaPreviewUrl ? (
-              <img 
-                src={figmaPreviewUrl} 
-                alt="Figma Design" 
-                style={{ width: '100%', height: 'auto', borderRadius: '8px' }}
-              />
-            ) : (
-              <div style={{ 
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                color: '#9ca3af'
-              }}>
-                No Figma preview available
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* React Preview */}
-        <div style={{ 
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ 
-            padding: '16px',
-            borderBottom: '1px solid #e5e7eb'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              React Rendering
-            </div>
-          </div>
-          <div style={{ padding: '16px', position: 'relative' }}>
-            <div ref={livePreviewRef} style={{ 
-              backgroundColor: 'white',
-              padding: '16px',
-              borderRadius: '8px',
-              overflow: 'visible',
-              border: '1px solid #e5e7eb',
-              minHeight: '200px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}>
-              {code ? (
-                <LiveProvider 
-                  code={transformCode(code)} 
-                  noInline={true}
-                  scope={{ 
-                    React, 
-                    Fragment: React.Fragment,
-                    useState: React.useState,
-                    useEffect: React.useEffect,
-                    useRef: React.useRef,
-                    useCallback: React.useCallback,
-                    useMemo: React.useMemo,
-                    useContext: React.useContext,
-                    createContext: React.createContext
-                  }}
-                >
-                  <div style={{ 
-                    color: '#ef4444', 
-                    marginBottom: '8px', 
-                    fontSize: '14px',
-                    fontFamily: 'monospace',
-                    padding: '8px',
-                    borderRadius: '4px',
-                    backgroundColor: '#fee2e2',
-                    width: '100%'
-                  }}>
-                    <LiveError />
-                  </div>
-                  <LivePreview />
-                </LiveProvider>
-              ) : (
-                <div style={{ color: '#9ca3af' }}>No code to preview</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {isComparing && (
-        <div style={{ 
-          marginTop: '24px',
-          textAlign: 'center', 
-          padding: '32px',
-          backgroundColor: 'white',
-          borderRadius: '8px', 
-          color: '#6b7280'
-        }}>
-          <div style={{ marginBottom: '16px' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block' }}>
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M12 6v6l4 2"></path>
-            </svg>
-          </div>
-          Analyzing visual differences...
-        </div>
-      )}
-
       {differences && (
-        <div style={{ 
-          marginTop: '24px',
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ 
-            padding: '16px',
-            borderBottom: '1px solid #e5e7eb'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-              AI-Detected Visual Differences
-            </div>
-            <div style={{ 
-              marginTop: '8px', 
-              display: 'flex', 
-              gap: '8px',
-              fontSize: '12px'
-            }}>
-              <span style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '4px',
-                color: '#ef4444' 
-              }}>
-                <span style={{ 
-                  width: '8px', 
-                  height: '8px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#ef4444' 
-                }}></span>
-                High Priority
-              </span>
-              <span style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '4px',
-                color: '#f59e0b' 
-              }}>
-                <span style={{ 
-                  width: '8px', 
-                  height: '8px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#f59e0b' 
-                }}></span>
-                Medium Priority
-              </span>
-              <span style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '4px',
-                color: '#3b82f6' 
-              }}>
-                <span style={{ 
-                  width: '8px', 
-                  height: '8px', 
-                  borderRadius: '50%', 
-                  backgroundColor: '#3b82f6' 
-                }}></span>
-                Low Priority
-              </span>
-            </div>
-          </div>
-          <div style={{ padding: '16px' }}>
-            {/* Group differences by category */}
-            {differences.length > 0 ? (
-              <>
-                {/* High priority differences */}
-                {differences.filter(diff => diff.priority === 'high').length > 0 && (
-                  <div style={{ marginBottom: '24px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#ef4444', marginBottom: '12px' }}>
-                      Critical Differences
-                    </h3>
-                    {differences.filter(diff => diff.priority === 'high').map((diff, index) => {
-                      const extractedValues = extractValues(diff.description);
-                      
-                      return (
-                        <div key={`high-${index}`} style={{ 
-                          display: 'flex',
-                          flexDirection: 'column',
-                          padding: '16px',
-                          marginBottom: '12px',
-                          borderLeft: '3px solid #ef4444',
-                          backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                          borderRadius: '0 4px 4px 0'
-                        }}>
-                          <div style={{ 
-                            fontWeight: '600',
-                            color: '#1f2937',
-                            fontSize: '15px'
-                          }}>{diff.title}</div>
-                          
-                          <div style={{ 
-                            color: '#6b7280',
-                            fontSize: '14px',
-                            marginTop: '8px',
-                            lineHeight: '1.5'
-                          }}>{diff.description}</div>
-                          
-                          {extractedValues.length > 0 && (
-                            <div style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: '8px',
-                              marginTop: '12px'
-                            }}>
-                              {extractedValues.map((item, valueIndex) => (
-                                <div key={valueIndex} style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '4px 8px',
-                                  backgroundColor: '#f9fafb',
-                                  borderRadius: '4px',
-                                  fontSize: '12px'
-                                }}>
-                                  <span style={{ color: '#4b5563', fontWeight: '500' }}>{item.label}:</span>
-                                  <span>{formatValue(item.value)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold mb-2">Visual Differences</h3>
+          <div className="space-y-4">
+            {differences.map((diff, index) => (
+              <div key={index} className="p-4 bg-gray-50 rounded">
+                <h4 className="font-medium">{diff.title}</h4>
+                <p className="text-gray-600">{diff.description}</p>
+                {diff.values && (
+                  <div className="mt-2 space-y-2">
+                    {diff.values.map((value, valueIndex) => (
+                      <div key={valueIndex} className="flex items-center gap-2">
+                        <span className="font-medium">{value.label}:</span>
+                        <span>{formatValue(value.value)}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
-                
-                {/* Medium priority differences */}
-                {differences.filter(diff => diff.priority === 'medium').length > 0 && (
-                  <div style={{ marginBottom: '24px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#f59e0b', marginBottom: '12px' }}>
-                      Important Differences
-                    </h3>
-                    {differences.filter(diff => diff.priority === 'medium').map((diff, index) => {
-                      const extractedValues = extractValues(diff.description);
-                      
-                      return (
-                        <div key={`medium-${index}`} style={{ 
-                          display: 'flex',
-                          flexDirection: 'column',
-                          padding: '16px',
-                          marginBottom: '12px',
-                          borderLeft: '3px solid #f59e0b',
-                          backgroundColor: 'rgba(245, 158, 11, 0.05)',
-                          borderRadius: '0 4px 4px 0'
-                        }}>
-                          <div style={{ 
-                            fontWeight: '600',
-                            color: '#1f2937',
-                            fontSize: '15px'
-                          }}>{diff.title}</div>
-                          
-                          <div style={{ 
-                            color: '#6b7280',
-                            fontSize: '14px',
-                            marginTop: '8px',
-                            lineHeight: '1.5'
-                          }}>{diff.description}</div>
-                          
-                          {extractedValues.length > 0 && (
-                            <div style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: '8px',
-                              marginTop: '12px'
-                            }}>
-                              {extractedValues.map((item, valueIndex) => (
-                                <div key={valueIndex} style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '4px 8px',
-                                  backgroundColor: '#f9fafb',
-                                  borderRadius: '4px',
-                                  fontSize: '12px'
-                                }}>
-                                  <span style={{ color: '#4b5563', fontWeight: '500' }}>{item.label}:</span>
-                                  <span>{formatValue(item.value)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                
-                {/* Low priority differences */}
-                {differences.filter(diff => diff.priority === 'low').length > 0 && (
-                  <div>
-                    <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#3b82f6', marginBottom: '12px' }}>
-                      Minor Differences
-                    </h3>
-                    {differences.filter(diff => diff.priority === 'low').map((diff, index) => {
-                      const extractedValues = extractValues(diff.description);
-                      
-                      return (
-                        <div key={`low-${index}`} style={{ 
-                          display: 'flex',
-                          flexDirection: 'column',
-                          padding: '16px',
-                          marginBottom: '12px',
-                          borderLeft: '3px solid #3b82f6',
-                          backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                          borderRadius: '0 4px 4px 0'
-                        }}>
-                          <div style={{ 
-                            fontWeight: '600',
-                            color: '#1f2937',
-                            fontSize: '15px'
-                          }}>{diff.title}</div>
-                          
-                          <div style={{ 
-                            color: '#6b7280',
-                            fontSize: '14px',
-                            marginTop: '8px',
-                            lineHeight: '1.5'
-                          }}>{diff.description}</div>
-                          
-                          {extractedValues.length > 0 && (
-                            <div style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: '8px',
-                              marginTop: '12px'
-                            }}>
-                              {extractedValues.map((item, valueIndex) => (
-                                <div key={valueIndex} style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '4px 8px',
-                                  backgroundColor: '#f9fafb',
-                                  borderRadius: '4px',
-                                  fontSize: '12px'
-                                }}>
-                                  <span style={{ color: '#4b5563', fontWeight: '500' }}>{item.label}:</span>
-                                  <span>{formatValue(item.value)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div style={{ 
-                padding: '24px', 
-                textAlign: 'center', 
-                color: '#6b7280' 
-              }}>
-                No significant differences detected
               </div>
-            )}
+            ))}
           </div>
         </div>
       )}

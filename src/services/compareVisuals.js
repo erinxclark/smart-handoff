@@ -37,20 +37,26 @@ export const compareVisuals = async (livePreviewUrl, figmaPreviewUrl) => {
               content: [
                 {
                   type: 'text',
-                  text: `Analyze this React component image and provide specific, detailed feedback on its visual styling including:
-- Exact colors (provide specific hex codes where possible)
-- Size and dimensions (in pixels where possible)
-- Border styles (width, color, radius)
-- Typography details (font size, weight, family, line height)
-- Spacing and layout (padding, margin, alignment)
-- Any potential UI/UX issues or improvements
+                  text: `Compare these two images - the first is the Figma design, and the second is the React implementation. Analyze the visual differences between them and provide specific, detailed feedback on:
+- Exact color differences (provide specific hex codes where possible)
+- Size and dimension mismatches (in pixels where possible)
+- Border style differences (width, color, radius)
+- Typography discrepancies (font size, weight, family, line height)
+- Spacing and layout variations (padding, margin, alignment)
+- Any other visual inconsistencies
 
 Format your response as a JSON array of objects, each with:
 - "priority": either "high", "medium", or "low" based on importance
 - "title": a specific title that clearly identifies the element and issue
 - "description": detailed explanation with specific measurements, colors, or other metrics
 
-Be as specific and precise as possible about exact styles, not general observations.`
+Be as specific and precise as possible about exact differences between the two images.`
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: figmaImageData
+                  }
                 },
                 {
                   type: 'image_url',
@@ -126,7 +132,6 @@ function enhanceAnalysis(analysisData) {
 
 // Helper to parse text-based responses
 function parseTextResponse(text) {
-  const priorities = ['high', 'medium', 'low'];
   const issues = [];
   
   // Look for sections that might indicate issues
