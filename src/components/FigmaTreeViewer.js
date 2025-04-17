@@ -1,3 +1,30 @@
+/**
+ * FigmaTreeViewer Component
+ * 
+ * This component displays and manages the Figma document structure as a tree view.
+ * It includes functionality for:
+ * - Displaying the Figma document hierarchy
+ * - Handling node selection and interaction
+ * - Preserving Figma's visual hierarchy
+ * - Supporting search and filtering
+ * 
+ * Key Features:
+ * 1. Tree Structure:
+ *    - Displays Figma nodes in a hierarchical tree
+ *    - Maintains proper visual hierarchy
+ *    - Supports nested groups and frames
+ * 
+ * 2. Node Normalization:
+ *    - Processes Figma nodes into a consistent format
+ *    - Preserves node metadata and properties
+ *    - Handles special node types (groups, frames)
+ * 
+ * 3. Interaction:
+ *    - Supports node selection
+ *    - Provides search functionality
+ *    - Maintains expanded/collapsed states
+ */
+
 import React, { useState } from 'react';
 
 const normalizeNode = (node) => {

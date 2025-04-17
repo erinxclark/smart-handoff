@@ -1,3 +1,30 @@
+/**
+ * LiveCodePreview Component
+ * 
+ * This component handles the live preview of React components generated from Figma designs.
+ * It includes functionality for:
+ * - Transforming Figma-generated code into renderable React components
+ * - Preserving Figma styling properties (fonts, colors, layouts)
+ * - Handling groups and frames with proper positioning
+ * - Comparing the React preview with the original Figma design
+ * 
+ * Key Features:
+ * 1. Code Transformation:
+ *    - Cleans and processes Figma-generated code
+ *    - Preserves all styling properties
+ *    - Handles component hierarchy and positioning
+ * 
+ * 2. Styling Preservation:
+ *    - Maintains exact Figma styling (fonts, colors, spacing)
+ *    - Handles relative positioning between elements
+ *    - Preserves flex layouts for groups and frames
+ * 
+ * 3. Preview Comparison:
+ *    - Renders React components in real-time
+ *    - Allows side-by-side comparison with Figma
+ *    - Provides visual difference analysis
+ */
+
 import React, { useState, useRef } from 'react';
 import { LiveProvider, LiveError, LivePreview } from 'react-live';
 import html2canvas from 'html2canvas';
