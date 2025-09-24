@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import FigmaTreeViewer from './components/FigmaTreeViewer';
 import LiveCodePreview from './components/LiveCodePreview';
@@ -6,12 +7,13 @@ import { fetchNodeById } from './figmaApi';
 import { generateSpecAndCode } from './services/openai';
 import { fetchNodeThumbnail } from './services/fetchNodeThumbnail';
 import CodeEditor from './components/CodeEditor';
+import PerformanceMonitor from './components/PerformanceMonitor';
 
 function App() {
   const [fileUrl, setFileUrl] = useState('');
   const [token, setToken] = useState('');
   const [fileData, setFileData] = useState(null);
-  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [, setSelectedNodeId] = useState(null);
   const [selectedNodeName, setSelectedNodeName] = useState(null);
   const [selectedNodeData, setSelectedNodeData] = useState(null);
   const [thumbnailUrl, setThumbnailUrl] = useState(null);
@@ -19,6 +21,7 @@ function App() {
   const [extractedCode, setExtractedCode] = useState('');
   const [loadingAI, setLoadingAI] = useState(false);
   const [error, setError] = useState(null);
+  const [showPerformance, setShowPerformance] = useState(false);
 
   const extractFileId = (url) => {
     try {
@@ -74,20 +77,14 @@ function App() {
     }
   };
 
-  const handleGenerateCode = async () => {
-    try {
-      setLoadingAI(true);
-      setError(null);
-      setExtractedCode('');
-      setAiOutput('');
-
-      if (!selectedNodeData) {
-        throw new Error('No node selected. Please select a node first.');
-      }
-
-      const output = await generateSpecAndCode(selectedNodeData);
+  // React Query mutation for code generation
+  const codeGenerationMutation = useMutation({
+    mutationFn: async (nodeData) => {
+      return await generateSpecAndCode(nodeData);
+    },
+    onSuccess: (output) => {
       setAiOutput(output);
-
+      
       // Extract the code from the output
       const codeMatch = output.match(/```jsx\n([\s\S]*?)```/);
       if (codeMatch) {
@@ -107,13 +104,41 @@ function App() {
           throw new Error('Could not extract code from AI output. Please try again.');
         }
       }
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error('Error generating code:', error);
       setError(error.message);
-    } finally {
+    },
+    onSettled: () => {
       setLoadingAI(false);
     }
+  });
+
+  const handleGenerateCode = async () => {
+    if (!selectedNodeData) {
+      setError('No node selected. Please select a node first.');
+      return;
+    }
+
+    setLoadingAI(true);
+    setError(null);
+    setExtractedCode('');
+    setAiOutput('');
+    
+    codeGenerationMutation.mutate(selectedNodeData);
   };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      if (event.key === 'p' || event.key === 'P') {
+        setShowPerformance(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -316,6 +341,9 @@ function App() {
           </>
         )}
       </main>
+
+      {/* Performance Monitor */}
+      <PerformanceMonitor isVisible={showPerformance} />
     </div>
   );
 }

@@ -25,7 +25,8 @@
  *    - Maintains expanded/collapsed states
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useDebounce } from '../utils/cache';
 
 const normalizeNode = (node) => {
   if (!node) return null;
@@ -71,7 +72,22 @@ const normalizeNode = (node) => {
 };
 
 const FigmaTreeViewer = ({ document, onSelect }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  // const [searchTerm, setSearchTerm] = useState('');
+  // const [expandedNodes, setExpandedNodes] = useState(new Set());
+
+  // Search functionality temporarily disabled
+  // const debouncedSearch = useDebounce((term) => {
+  //   // Filter nodes based on search term
+  //   const filteredNodes = filterNodes(document, term);
+  //   // Update the tree view with filtered nodes
+  //   updateTreeView(filteredNodes);
+  // }, 300);
+
+  // const handleSearch = useCallback((event) => {
+  //   const term = event.target.value;
+  //   setSearchTerm(term);
+  //   debouncedSearch(term);
+  // }, [debouncedSearch]);
 
   if (!document) {
     return (
@@ -84,18 +100,12 @@ const FigmaTreeViewer = ({ document, onSelect }) => {
   // Normalize the document structure
   const normalizedDocument = normalizeNode(document);
 
-  const renderNodes = (node, searchTerm = '') => {
+  const renderNodes = (node) => {
     if (!node || !node.children) return null;
-
-    const filteredChildren = node.children.filter(child => 
-      child.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (filteredChildren.length === 0) return null;
 
     return (
       <ul className="ml-4 list-disc text-sm">
-        {filteredChildren.map((child) => (
+        {node.children.map((child) => (
           <li key={child.id} className="py-1">
             <button
               className={`text-blue-700 hover:underline focus:outline-none ${
@@ -107,7 +117,7 @@ const FigmaTreeViewer = ({ document, onSelect }) => {
               {child.isGroup && ' [Group]'}
               {child.isFrame && ' [Frame]'}
             </button>
-            {renderNodes(child, searchTerm)}
+            {renderNodes(child)}
           </li>
         ))}
       </ul>
@@ -118,17 +128,7 @@ const FigmaTreeViewer = ({ document, onSelect }) => {
     <div className="mt-6 p-4 bg-white rounded shadow w-full max-w-2xl overflow-auto max-h-[500px]">
       <h2 className="text-xl font-semibold mb-2">📁 Figma File Tree</h2>
       
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Search components..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {renderNodes(normalizedDocument, searchTerm)}
+      {renderNodes(normalizedDocument)}
     </div>
   );
 };

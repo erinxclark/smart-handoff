@@ -25,124 +25,67 @@
  *    - Provides visual difference analysis
  */
 
-import React, { useState, useRef } from 'react';
-import { LiveProvider, LiveError, LivePreview } from 'react-live';
+import React, { useState, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
+// import domtoimage from 'dom-to-image'; // Available for future use
 import { compareVisuals } from '../services/compareVisuals';
+import { deployToCodeSandbox, createShareableLink } from '../services/codesandbox';
+import AIComponentRenderer from './AIComponentRenderer';
 
 const LiveCodePreview = ({ code, figmaPreviewUrl }) => {
   const [differences, setDifferences] = useState(null);
   const [isComparing, setIsComparing] = useState(false);
   const [compareError, setCompareError] = useState(null);
+  const [transformedCode] = useState('');
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deploymentUrl, setDeploymentUrl] = useState(null);
+  const [shareableLink, setShareableLink] = useState(null);
+  const [componentName, setComponentName] = useState('Component');
   const livePreviewRef = useRef(null);
 
-  const transformCode = (code) => {
-    if (!code) return '';
+  // Extract component name and set up smart rendering
+  useEffect(() => {
+    if (code) {
+      // Extract component name from code
+      const componentMatch = code.match(/(?:const|function)\s+(\w+)\s*=/);
+      const extractedName = componentMatch ? componentMatch[1] : 'Component';
+      setComponentName(extractedName);
+    }
+  }, [code]);
+
+  // Legacy transformation code removed - now handled by SmartComponentRenderer
+
+  const handleDeploy = async () => {
+    if (!transformedCode) {
+      console.error('No transformed code available');
+      return;
+    }
 
     try {
-      // Clean the code
-      let cleanCode = code
-        .replace(/export\s+default\s+/g, '')
-        .replace(/import\s+.*?from\s+['"].*?['"];?/g, '')
-        .trim();
-
-      // Extract component name
-      const componentMatch = cleanCode.match(/(?:const|function)\s+(\w+)\s*=/);
+      setIsDeploying(true);
+      
+      // Extract component name from the original code
+      const componentMatch = code.match(/(?:const|function)\s+(\w+)\s*=/);
       const componentName = componentMatch ? componentMatch[1] : 'Component';
-
-      // Remove the usage part if it exists
-      cleanCode = cleanCode.split('// Usage')[0].trim();
-
-      // Handle component order and positioning
-      cleanCode = cleanCode.replace(/<div([^>]*)>/g, (match, attributes) => {
-        // Check if this is a group or frame
-        const isGroup = match.includes('data-group="true"');
-        const isFrame = match.includes('data-frame="true"');
+      
+      console.log('Deploying component to CodeSandbox...');
+      const result = await deployToCodeSandbox(transformedCode, componentName);
+      
+      if (result.success) {
+        setDeploymentUrl(result.url);
         
-        // Add position relative and z-index to maintain proper stacking
-        if (!attributes.includes('style=')) {
-          return `<div${attributes} style={{ 
-            position: 'relative', 
-            zIndex: 1,
-            ${isGroup ? "display: 'flex', flexDirection: 'column'," : ''}
-            ${isFrame ? "display: 'flex', flexDirection: 'column', padding: '16px'," : ''}
-          }}>`;
-        }
+        // Create shareable link
+        const shareData = createShareableLink(transformedCode, componentName);
+        setShareableLink(shareData.shareableLink);
         
-        // If style exists, ensure it has position relative and proper layout
-        return match.replace(/style=\{\{([^}]*)\}\}/, (styleMatch, styleContent) => {
-          let newStyle = styleContent;
-          if (!styleContent.includes('position:')) {
-            newStyle += ", position: 'relative', zIndex: 1";
-          }
-          if (isGroup && !styleContent.includes('display:')) {
-            newStyle += ", display: 'flex', flexDirection: 'column'";
-          }
-          if (isFrame && !styleContent.includes('display:')) {
-            newStyle += ", display: 'flex', flexDirection: 'column', padding: '16px'";
-          }
-          return `style={{${newStyle}}}`;
-        });
-      });
-
-      // Handle text elements to preserve font properties
-      cleanCode = cleanCode.replace(/<span([^>]*)>/g, (match, attributes) => {
-        if (!attributes.includes('style=')) {
-          return match;
-        }
-        
-        return match.replace(/style=\{\{([^}]*)\}\}/, (styleMatch, styleContent) => {
-          let newStyle = styleContent;
-          // Ensure font properties are preserved
-          if (!styleContent.includes('fontFamily:')) {
-            newStyle += ", fontFamily: 'inherit'";
-          }
-          if (!styleContent.includes('fontSize:')) {
-            newStyle += ", fontSize: 'inherit'";
-          }
-          if (!styleContent.includes('fontWeight:')) {
-            newStyle += ", fontWeight: 'inherit'";
-          }
-          if (!styleContent.includes('lineHeight:')) {
-            newStyle += ", lineHeight: 'inherit'";
-          }
-          if (!styleContent.includes('letterSpacing:')) {
-            newStyle += ", letterSpacing: 'inherit'";
-          }
-          return `style={{${newStyle}}}`;
-        });
-      });
-
-      // Return the complete code with proper syntax
-      return `
-${cleanCode}
-
-render(<${componentName} text="This is a test" />);
-`;
+        console.log('Successfully deployed:', result.url);
+      } else {
+        throw new Error(result.error || 'Deployment failed');
+      }
     } catch (error) {
-      console.error('Error transforming code:', error);
-      return `
-const ErrorComponent = () => {
-  return (
-    <div style={{ 
-      width: '200px', 
-      height: '100px', 
-      backgroundColor: '#fee2e2', 
-      border: '1px solid #ef4444',
-      borderRadius: '4px',
-      padding: '16px',
-      color: '#ef4444',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      Error rendering component
-    </div>
-  );
-};
-
-render(<ErrorComponent />);
-`;
+      console.error('Error deploying to CodeSandbox:', error);
+    } finally {
+      setIsDeploying(false);
     }
   };
 
@@ -228,61 +171,7 @@ render(<ErrorComponent />);
     return value;
   };
 
-  // Extracts specific values from description text
-  const extractValues = (description) => {
-    if (!description) return [];
-    
-    const values = [];
-    
-    // Extract color hex codes
-    const hexColors = description.match(/#[0-9A-Fa-f]{3,8}/g) || [];
-    hexColors.forEach(color => {
-      values.push({ 
-        label: 'Color', 
-        value: color 
-      });
-    });
-    
-    // Extract pixel values
-    const pixelValues = description.match(/\b\d+(\.\d+)?px\b/g) || [];
-    pixelValues.forEach(px => {
-      values.push({ 
-        label: 'Size', 
-        value: px 
-      });
-    });
-    
-    // Extract rem values
-    const remValues = description.match(/\b\d+(\.\d+)?rem\b/g) || [];
-    remValues.forEach(rem => {
-      values.push({ 
-        label: 'Size', 
-        value: rem 
-      });
-    });
-    
-    // Extract font-weight
-    const fontWeights = description.match(/\bfont-weight:\s*(\d+|normal|bold|lighter|bolder)\b/g) || [];
-    fontWeights.forEach(weight => {
-      const value = weight.split(':')[1].trim();
-      values.push({ 
-        label: 'Font Weight', 
-        value 
-      });
-    });
-    
-    // Extract border-radius
-    const borderRadius = description.match(/\bborder-radius:\s*[^;]+/g) || [];
-    borderRadius.forEach(radius => {
-      const value = radius.split(':')[1].trim();
-      values.push({ 
-        label: 'Border Radius', 
-        value 
-      });
-    });
-    
-    return values;
-  };
+  // Legacy helper functions removed - now handled by SmartComponentRenderer
 
   return (
     <div className="mt-6 p-4 bg-white rounded shadow w-full">
@@ -293,20 +182,10 @@ render(<ErrorComponent />);
         <div className="border rounded p-4">
           <h3 className="text-lg font-semibold mb-2">React Preview</h3>
           <div ref={livePreviewRef} className="mt-2">
-            {code ? (
-              <LiveProvider 
-                code={transformCode(code)}
-                noInline={true}
-                scope={{ React }}
-              >
-                <div className="relative">
-                  <LiveError className="absolute top-0 left-0 right-0 bg-red-100 text-red-700 p-2 text-sm" />
-                  <LivePreview className="mt-8" />
-                </div>
-              </LiveProvider>
-            ) : (
-              <div className="text-gray-500">No code to preview</div>
-            )}
+            <AIComponentRenderer
+              code={code}
+              componentName={componentName}
+            />
           </div>
         </div>
 
@@ -325,9 +204,9 @@ render(<ErrorComponent />);
         )}
       </div>
 
-      {/* Comparison Controls */}
-      {figmaPreviewUrl && (
-        <div className="mt-4 flex justify-center">
+      {/* Action Controls */}
+      <div className="mt-4 flex justify-center gap-4 flex-wrap">
+        {figmaPreviewUrl && (
           <button
             onClick={handleCompare}
             disabled={isComparing}
@@ -335,8 +214,47 @@ render(<ErrorComponent />);
           >
             {isComparing ? 'Comparing...' : 'Compare Visuals'}
           </button>
-        </div>
-      )}
+        )}
+        
+        {transformedCode && (
+          <button
+            onClick={handleDeploy}
+            disabled={isDeploying}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+          >
+            {isDeploying ? 'Deploying...' : '🚀 Deploy to CodeSandbox'}
+          </button>
+        )}
+        
+        {deploymentUrl && (
+          <div className="flex flex-col items-center gap-2">
+            <a
+              href={deploymentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+            >
+              🔗 Open Live Demo
+            </a>
+            {shareableLink && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={shareableLink}
+                  readOnly
+                  className="px-2 py-1 text-xs border rounded w-64"
+                />
+                <button
+                  onClick={() => navigator.clipboard.writeText(shareableLink)}
+                  className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Copy
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {compareError && (
         <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">
