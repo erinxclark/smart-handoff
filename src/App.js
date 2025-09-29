@@ -304,13 +304,13 @@ function App() {
                                 onChange={(e) => setSelectedLibrary(e.target.value)}
                                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                               >
-                                <option value="none">Custom (No Library)</option>
+                                <option value="none">Auto-Detect + Custom Fallback</option>
                                 <option value="shadcn">shadcn/ui</option>
                                 <option value="mui">Material-UI</option>
                                 <option value="chakra">Chakra UI</option>
                               </select>
                               <p className="text-xs text-gray-500 mt-1">
-                                {selectedLibrary === 'none' ? 'Generate generic div elements' : 
+                                {selectedLibrary === 'none' ? 'Auto-detect library components (high confidence) or generate generic div elements' : 
                                  selectedLibrary === 'shadcn' ? 'Generate shadcn/ui components' :
                                  selectedLibrary === 'mui' ? 'Generate Material-UI components' :
                                  'Generate Chakra UI components'}

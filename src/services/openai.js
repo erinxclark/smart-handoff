@@ -89,8 +89,22 @@ export const generateSpecAndCode = async (figmaNode, selectedLibrary = 'none') =
   const componentDetection = detectComponentPattern(figmaNode);
   console.log('Component Detection Result:', componentDetection);
 
-  // Map to component library if requested
-  const libraryMapping = mapToComponentLibrary(componentDetection, figmaNode, selectedLibrary);
+  // Auto-detect if we should use library components
+  const shouldAutoUseLibrary = componentDetection.confidence >= 70 && 
+                               componentDetection.componentType !== 'unknown' && 
+                               componentDetection.componentType !== 'container';
+  
+  // Use auto-detected library or user selection
+  const effectiveLibrary = shouldAutoUseLibrary && selectedLibrary === 'none' 
+    ? componentDetection.suggestedLibrary 
+    : selectedLibrary;
+  
+  console.log('Component Detection:', componentDetection);
+  console.log('Should Auto-Use Library:', shouldAutoUseLibrary);
+  console.log('Effective Library:', effectiveLibrary);
+
+  // Map to component library
+  const libraryMapping = mapToComponentLibrary(componentDetection, figmaNode, effectiveLibrary);
   console.log('Component Library Mapping:', libraryMapping);
 
   // Check for images in the Figma node
@@ -109,11 +123,13 @@ export const generateSpecAndCode = async (figmaNode, selectedLibrary = 'none') =
   // Component library information
   let libraryInfo = '';
   if (libraryMapping.usesLibrary) {
+    const autoDetected = shouldAutoUseLibrary && selectedLibrary === 'none';
     libraryInfo = `\n\nCOMPONENT LIBRARY INTEGRATION:
-- Using ${selectedLibrary.toUpperCase()} component library
+- ${autoDetected ? 'AUTO-DETECTED' : 'USER-SELECTED'} ${effectiveLibrary.toUpperCase()} component library
 - Required imports: ${libraryMapping.imports.join(', ')}
 - Generated component code: ${libraryMapping.code}
-- This replaces the generic div approach with proper component library patterns`;
+- This replaces the generic div approach with proper component library patterns
+- ${autoDetected ? 'Automatically chose library based on high confidence detection' : 'Using user-selected library'}`;
   }
 
   const prompt = `You are a React expert. Given the following Figma design specifications, create:
