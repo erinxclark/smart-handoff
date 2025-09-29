@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LiveProvider, LiveError, LivePreview } from 'react-live';
+import { inlineStylesToTailwind } from '../utils/styleConverter';
 
 /**
  * AICodePreview Component
@@ -17,6 +18,54 @@ const AICodePreview = ({
   const [processedCode, setProcessedCode] = useState('');
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [useTailwind, setUseTailwind] = useState(false);
+  const [tailwindCode, setTailwindCode] = useState('');
+  const [originalCode, setOriginalCode] = useState('');
+
+  // Function to convert inline styles to Tailwind classes in JSX
+  const convertJSXStylesToTailwind = (jsxCode) => {
+    if (!jsxCode || typeof jsxCode !== 'string') return jsxCode;
+
+    // Find all style objects in JSX and convert them
+    return jsxCode.replace(/style=\{\{([^}]+)\}\}/g, (match, styleContent) => {
+      try {
+        // Parse the style object content
+        const styleObject = {};
+        const stylePairs = styleContent.split(',');
+        
+        stylePairs.forEach(pair => {
+          const [key, ...valueParts] = pair.split(':');
+          if (key && valueParts.length > 0) {
+            const cleanKey = key.trim();
+            const cleanValue = valueParts.join(':').trim().replace(/['"]/g, '');
+            styleObject[cleanKey] = cleanValue;
+          }
+        });
+
+        // Convert to Tailwind
+        const { className, remainingStyles } = inlineStylesToTailwind(styleObject);
+        
+        // If we have Tailwind classes and no remaining styles, use className
+        if (className && Object.keys(remainingStyles).length === 0) {
+          return `className="${className}"`;
+        }
+        
+        // If we have some Tailwind classes but also remaining styles, combine both
+        if (className && Object.keys(remainingStyles).length > 0) {
+          const remainingStyleString = Object.entries(remainingStyles)
+            .map(([key, value]) => `${key}: '${value}'`)
+            .join(', ');
+          return `className="${className}" style={{${remainingStyleString}}}`;
+        }
+        
+        // If no Tailwind conversion possible, keep original
+        return match;
+      } catch (error) {
+        console.warn('Error converting styles to Tailwind:', error);
+        return match;
+      }
+    });
+  };
 
   // Function to clean and prepare AI-generated code for React Live
   const prepareCodeForReactLive = (rawCode) => {
@@ -74,6 +123,8 @@ const AICodePreview = ({
   useEffect(() => {
     if (!code || code.trim() === '') {
       setProcessedCode('');
+      setTailwindCode('');
+      setOriginalCode('');
       setError(null);
       setIsProcessing(false);
       return;
@@ -86,7 +137,15 @@ const AICodePreview = ({
       const preparedCode = prepareCodeForReactLive(code);
       
       if (preparedCode && preparedCode.trim() !== '') {
-        setProcessedCode(preparedCode);
+        // Store original prepared code
+        setOriginalCode(preparedCode);
+        
+        // Convert to Tailwind version
+        const tailwindVersion = convertJSXStylesToTailwind(preparedCode);
+        setTailwindCode(tailwindVersion);
+        
+        // Set the appropriate version based on toggle
+        setProcessedCode(useTailwind ? tailwindVersion : preparedCode);
         setError(null);
       } else {
         // Create a simple fallback JSX
@@ -105,6 +164,8 @@ const AICodePreview = ({
       ${componentName}
     </div>`;
         setProcessedCode(fallbackJSX);
+        setOriginalCode(fallbackJSX);
+        setTailwindCode(convertJSXStylesToTailwind(fallbackJSX));
         setError('No valid React component found, showing fallback');
       }
     } catch (err) {
@@ -113,7 +174,7 @@ const AICodePreview = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [code]);
+  }, [code, useTailwind]);
 
   // Show placeholder when no code is available
   if (!code || code.trim() === '') {
@@ -144,11 +205,36 @@ const AICodePreview = ({
       {/* Code Display */}
       {showCode && (
         <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 border-b">
-            Generated Code
+          <div className="bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 border-b flex items-center justify-between">
+            <span>Generated Code</span>
+            <div className="flex items-center space-x-3">
+              <span className="text-xs text-gray-600">Style Format:</span>
+              <div className="flex items-center space-x-2">
+                <label className="flex items-center text-xs">
+                  <input
+                    type="radio"
+                    name="styleFormat"
+                    checked={!useTailwind}
+                    onChange={() => setUseTailwind(false)}
+                    className="mr-1"
+                  />
+                  Inline Styles
+                </label>
+                <label className="flex items-center text-xs">
+                  <input
+                    type="radio"
+                    name="styleFormat"
+                    checked={useTailwind}
+                    onChange={() => setUseTailwind(true)}
+                    className="mr-1"
+                  />
+                  Tailwind CSS
+                </label>
+              </div>
+            </div>
           </div>
           <pre className="p-4 bg-gray-900 text-gray-100 text-sm overflow-auto max-h-64">
-            <code>{code}</code>
+            <code>{useTailwind ? tailwindCode : originalCode || code}</code>
           </pre>
         </div>
       )}
