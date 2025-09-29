@@ -66,6 +66,13 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 - **Developer Guidance**: Includes helpful comments and data attributes for manual replacement
 - **Figma Reference Preservation**: Maintains original Figma image references for easy updates
 
+### 9. Component Library Integration
+- **Real Component Libraries**: Generates actual shadcn/ui, Material-UI, and Chakra UI components
+- **Intelligent Mapping**: Converts detected components to proper library implementations
+- **Import Management**: Automatically generates required import statements
+- **Smart Fallbacks**: Falls back to custom components when confidence is low
+- **Library Selection**: Choose between different component libraries or custom implementation
+
 ## Technical Details
 
 ### Component Structure
@@ -79,6 +86,7 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 - **`styleConverter`**: Utility for converting React inline styles to Tailwind CSS classes
 - **`componentDetector`**: Intelligent component pattern recognition and classification
 - **`imageHandler`**: Graceful handling of missing Figma images with SVG placeholders
+- **`componentMapper`**: Maps detected components to actual component library implementations
 
 ### Key Technologies
 - **React 18** for modern UI components and hooks
@@ -113,11 +121,13 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 - View real-time Figma thumbnails and metadata
 
 ### 2. AI Code Generation
+- **Select Component Library**: Choose from shadcn/ui, Material-UI, Chakra UI, or custom implementation
 - Click "Generate Spec + Code" to trigger AI analysis
 - **Component Detection**: AI automatically identifies component types (button, input, card, etc.)
+- **Library Mapping**: Converts detected components to actual component library implementations
 - **Image Analysis**: Detects and handles Figma images with intelligent placeholders
 - AI analyzes Figma node properties and relationships
-- Generates clean, production-ready React components with component-specific patterns
+- Generates clean, production-ready React components with proper imports and library patterns
 - Preserves exact styling, positioning, and hierarchy
 - Includes semantic HTML and accessibility attributes based on component type
 

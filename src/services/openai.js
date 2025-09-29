@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { detectComponentPattern } from '../utils/componentDetector';
 import { generateImageJSX, getImageStyle } from '../utils/imageHandler';
+import { mapToComponentLibrary, generateImports } from '../utils/componentMapper';
 
 const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
@@ -79,7 +80,7 @@ function getComponentSpecificRules(componentType) {
   return rules[componentType] || rules.unknown;
 }
 
-export const generateSpecAndCode = async (figmaNode) => {
+export const generateSpecAndCode = async (figmaNode, selectedLibrary = 'none') => {
   if (!OPENAI_API_KEY) {
     throw new Error('OpenAI API key is not configured');
   }
@@ -87,6 +88,10 @@ export const generateSpecAndCode = async (figmaNode) => {
   // Detect component pattern and handle images
   const componentDetection = detectComponentPattern(figmaNode);
   console.log('Component Detection Result:', componentDetection);
+
+  // Map to component library if requested
+  const libraryMapping = mapToComponentLibrary(componentDetection, figmaNode, selectedLibrary);
+  console.log('Component Library Mapping:', libraryMapping);
 
   // Check for images in the Figma node
   const hasImages = figmaNode.fills && figmaNode.fills.some(fill => fill.type === 'IMAGE');
@@ -99,6 +104,16 @@ export const generateSpecAndCode = async (figmaNode) => {
 - Include comments for manual image replacement
 - Example: ${imageJSX.jsx}
 - Comments to include: ${imageJSX.comments.join('\n')}`;
+  }
+
+  // Component library information
+  let libraryInfo = '';
+  if (libraryMapping.usesLibrary) {
+    libraryInfo = `\n\nCOMPONENT LIBRARY INTEGRATION:
+- Using ${selectedLibrary.toUpperCase()} component library
+- Required imports: ${libraryMapping.imports.join(', ')}
+- Generated component code: ${libraryMapping.code}
+- This replaces the generic div approach with proper component library patterns`;
   }
 
   const prompt = `You are a React expert. Given the following Figma design specifications, create:
@@ -126,7 +141,7 @@ COMPONENT ANALYSIS:
    - Uses semantic HTML
    - Is responsive where needed
    - Has no framework dependencies
-   - Follows component-specific best practices based on detected type${imageHandling}
+   - Follows component-specific best practices based on detected type${imageHandling}${libraryInfo}
 
 COMPONENT-SPECIFIC GENERATION RULES:
 ${getComponentSpecificRules(componentDetection.componentType)}
