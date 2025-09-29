@@ -32,14 +32,22 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 - **Visual Comparison**: Side-by-side Figma vs React component comparison
 - **Interactive Testing**: Live editing and immediate visual feedback
 
-### 4. Intelligent Positioning & Layout
+### 4. Tailwind CSS Integration
+- **Dual Format Support**: Generate components with inline styles or Tailwind CSS classes
+- **Smart Style Conversion**: Automatic conversion of CSS properties to Tailwind utilities
+- **Standard Value Mapping**: Common values converted to Tailwind standards (16px → p-4)
+- **Custom Value Support**: Arbitrary values preserved with Tailwind syntax (477px → w-[477px])
+- **Real-time Toggle**: Switch between inline styles and Tailwind CSS with radio buttons
+- **Mixed Style Support**: Handle partial conversions with both className and style attributes
+
+### 5. Intelligent Positioning & Layout
 - **Hierarchy Preservation**: Maintains Figma's parent-child relationships
 - **CSS Positioning**: Converts Figma coordinates to proper CSS (relative containers, absolute children)
 - **Root Element Normalization**: Ensures components always render within preview bounds
 - **Z-Index Management**: Preserves layer stacking order from Figma
 - **Responsive Layout**: Handles multi-element components with proper positioning
 
-### 5. AI-Powered Code Analysis
+### 6. AI-Powered Code Analysis
 - **Component Structure Analysis**: AI identifies and fixes structural issues
 - **Code Validation**: Automatic syntax checking and error detection
 - **Smart Fallbacks**: Graceful degradation when code generation fails
@@ -48,13 +56,14 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 ## Technical Details
 
 ### Component Structure
-- **`AICodePreview`**: Core React Live integration for real-time JSX rendering
+- **`AICodePreview`**: Core React Live integration for real-time JSX rendering with Tailwind CSS conversion
 - **`AIGeneratedCodePreview`**: Specialized component for AI output section
 - **`SimpleLivePreview`**: Lightweight wrapper for CodeEditor integration
 - **`FigmaTreeViewer`**: Displays and manages Figma document structure
 - **`LiveCodePreview`**: Orchestrates React component preview and comparison
 - **`CodeEditor`**: Provides code editing capabilities with AI integration
 - **`ComponentStructureAnalyzer`**: AI service for code analysis and fixing
+- **`styleConverter`**: Utility for converting React inline styles to Tailwind CSS classes
 
 ### Key Technologies
 - **React 18** for modern UI components and hooks
@@ -96,9 +105,32 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 
 ### 3. Live Preview & Comparison
 - View generated React code in the editor
+- Toggle between **Inline Styles** and **Tailwind CSS** formats
 - See real-time live preview using React Live
 - Compare visually with original Figma design
 - Edit code and see instant updates in preview
+
+#### Example: Style Format Toggle
+```jsx
+// Inline Styles Format
+<div style={{
+  width: '477px',
+  height: '297px',
+  backgroundColor: '#44b24f',
+  border: '13px solid #000000',
+  borderRadius: '15px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+}}>
+  Content
+</div>
+
+// Tailwind CSS Format
+<div className="w-[477px] h-[297px] bg-[#44b24f] border-[13px] border-solid border-black rounded-[15px] flex justify-center items-center">
+  Content
+</div>
+```
 
 ### 4. Error Recovery
 - AI automatically detects and fixes code issues
