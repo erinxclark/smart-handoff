@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import FigmaTreeViewer from './components/FigmaTreeViewer';
 import LiveCodePreview from './components/LiveCodePreview';
+import AIGeneratedCodePreview from './components/AIGeneratedCodePreview';
 import { fetchNodeById } from './figmaApi';
 import { generateSpecAndCode } from './services/openai';
 import { fetchNodeThumbnail } from './services/fetchNodeThumbnail';
@@ -286,7 +287,10 @@ function App() {
                       </div>
                       <div className="prose max-w-none">
                         {aiOutput ? (
-                          <div className="whitespace-pre-wrap">{aiOutput}</div>
+                          <AIGeneratedCodePreview 
+                            code={aiOutput} 
+                            componentName={selectedNodeName || 'Component'}
+                          />
                         ) : (
                           <div className="text-center text-gray-400 py-8">
                             {loadingAI ? (

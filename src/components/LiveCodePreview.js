@@ -30,7 +30,7 @@ import html2canvas from 'html2canvas';
 // import domtoimage from 'dom-to-image'; // Available for future use
 import { compareVisuals } from '../services/compareVisuals';
 import { deployToCodeSandbox, createShareableLink } from '../services/codesandbox';
-import AIComponentRenderer from './AIComponentRenderer';
+import SimpleLivePreview from './SimpleLivePreview';
 
 const LiveCodePreview = ({ code, figmaPreviewUrl }) => {
   const [differences, setDifferences] = useState(null);
@@ -182,7 +182,7 @@ const LiveCodePreview = ({ code, figmaPreviewUrl }) => {
         <div className="border rounded p-4">
           <h3 className="text-lg font-semibold mb-2">React Preview</h3>
           <div ref={livePreviewRef} className="mt-2">
-            <AIComponentRenderer
+            <SimpleLivePreview
               code={code}
               componentName={componentName}
             />

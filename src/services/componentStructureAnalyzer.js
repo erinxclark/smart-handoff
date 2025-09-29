@@ -46,21 +46,25 @@ export class ComponentStructureAnalyzer {
     const prompt = `Analyze this React component code and fix any structural issues for React Live rendering:
 
 CRITICAL REQUIREMENTS:
-1. Ensure proper JSX hierarchy with single root element
-2. Fix any incomplete CSS properties
-3. Replace all variable references with actual values
-4. Remove conditional rendering and simplify to direct rendering
-5. Ensure all JSX expressions are properly formatted
-6. Make sure the component can be rendered directly in React Live
-7. Preserve all styling and layout properties
-8. Handle nested elements properly
+1. Return ONLY JSX code that can be rendered directly in React Live
+2. Use this EXACT format: const ComponentName = () => { return (<JSX>); }; ComponentName
+3. Fix ALL style objects to use proper JavaScript object syntax: style={{property: 'value', property2: 'value2'}}
+4. Replace ALL variables with actual values (no undefined variables)
+5. Ensure proper JSX hierarchy with single root element
+6. Remove conditional rendering and simplify to direct rendering
+7. Ensure all JSX expressions are properly formatted
+8. Preserve all styling and layout properties
+9. Handle nested elements properly
+10. NO import statements, NO export statements, NO React.createElement calls
+11. Use only JSX syntax that React Live can understand
+12. Make sure style objects are complete and properly closed
 
 Original code:
 ${code}
 
 Component name: ${componentName}
 
-Return ONLY the fixed React component code that can be rendered directly in React Live. Do not include any explanations or markdown formatting.`;
+Return ONLY the fixed JSX component code in the exact format: const ComponentName = () => { return (<JSX>); }; ComponentName`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

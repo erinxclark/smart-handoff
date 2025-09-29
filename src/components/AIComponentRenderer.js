@@ -32,102 +32,106 @@ const AIComponentRenderer = ({ code, componentName = 'Component' }) => {
           // Complex JSX parsing to properly render AI-generated components
           console.log('Raw extracted JSX:', extractedJSX);
           
-          // Parse the actual JSX structure from AI-generated code
-          const parseJSXElement = (jsxString) => {
-            console.log('Parsing JSX element:', jsxString);
+          // Execute the AI-generated React code directly
+          const executeAICode = (codeString) => {
+            console.log('Executing AI code:', codeString);
+            console.log('Code length:', codeString.length);
             
-            // Find the first complete div element with its closing tag
-            const divMatch = jsxString.match(/<div[^>]*style=\{\{([^}]+)\}\}[^>]*>([^<]*)<\/div>/);
-            if (!divMatch) {
-              console.log('No complete div found, trying to find any div');
-              // Fallback: find any div element
-              const anyDivMatch = jsxString.match(/<div[^>]*style=\{\{([^}]+)\}\}[^>]*>/);
-              if (!anyDivMatch) {
-                console.log('No div found at all');
-                return null;
+            try {
+              // Extract the component function from the AI code - more flexible regex
+              const componentMatch = codeString.match(/const\s+(\w+)\s*=\s*\([^)]*\)\s*=>\s*{[\s\S]*?return\s*\(([\s\S]*?)\);?\s*};/);
+              
+              if (!componentMatch) {
+                console.log('No component function found, trying alternative pattern');
+                // Try alternative pattern
+                const altMatch = codeString.match(/const\s+(\w+)\s*=\s*\([^)]*\)\s*=>\s*{[\s\S]*?return\s*\(([\s\S]*?)\);?\s*}/);
+                if (!altMatch) {
+                  console.log('No component function found with alternative pattern either');
+                  return null;
+                }
+                componentMatch = altMatch;
               }
               
-              const styleContent = anyDivMatch[1];
-              console.log('Style content (fallback):', styleContent);
+              const componentName = componentMatch[1];
+              const returnJSX = componentMatch[2];
               
-              // Parse style properties
-              const styleObj = {};
-              const properties = styleContent.split(',').map(prop => prop.trim());
+              console.log('Component name:', componentName);
+              console.log('Return JSX:', returnJSX);
               
-              properties.forEach(prop => {
-                const colonIndex = prop.indexOf(':');
-                if (colonIndex > 0) {
-                  const key = prop.substring(0, colonIndex).trim();
-                  const value = prop.substring(colonIndex + 1).trim();
-                  
-                  const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-                  const cleanValue = value.replace(/['"`]/g, '').trim();
-                  
-                  if (camelKey && cleanValue) {
-                    styleObj[camelKey] = cleanValue;
-                  }
-                }
-              });
-              
-              console.log('Parsed style object (fallback):', styleObj);
-              
-              return React.createElement('div', {
-                style: {
-                  ...styleObj,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '10px auto'
-                }
-              });
-            }
-            
-            const styleContent = divMatch[1];
-            const textContent = divMatch[2].trim();
-            
-            console.log('Style content:', styleContent);
-            console.log('Text content:', textContent);
-            
-            // Parse style properties into a React style object
-            const styleObj = {};
-            const properties = styleContent.split(',').map(prop => prop.trim());
-            
-            properties.forEach(prop => {
-              const colonIndex = prop.indexOf(':');
-              if (colonIndex > 0) {
-                const key = prop.substring(0, colonIndex).trim();
-                const value = prop.substring(colonIndex + 1).trim();
-                
-                // Convert CSS property names to camelCase
-                const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-                // Remove quotes and clean up the value
-                const cleanValue = value.replace(/['"`]/g, '').trim();
-                
-                if (camelKey && cleanValue) {
-                  styleObj[camelKey] = cleanValue;
+              // Extract default values from function parameters
+              const defaults = {};
+              const paramMatch = codeString.match(/\([^)]*\)\s*=>/);
+              if (paramMatch) {
+                const paramString = paramMatch[0];
+                const defaultMatches = paramString.match(/(\w+)\s*=\s*([^,}]+)/g);
+                if (defaultMatches) {
+                  defaultMatches.forEach(match => {
+                    const [key, value] = match.split('=').map(s => s.trim());
+                    defaults[key] = value.replace(/['"]/g, '');
+                  });
                 }
               }
-            });
-            
-            console.log('Parsed style object:', styleObj);
-            
-            // Create the actual React element with real AI-generated properties
-            const element = React.createElement('div', {
-              style: {
-                ...styleObj,
+              
+              console.log('Default values:', defaults);
+              
+              // If no defaults found, try to extract from the code directly
+              if (Object.keys(defaults).length === 0) {
+                console.log('No defaults found, extracting from code directly');
+                const widthMatch = codeString.match(/width\s*=\s*(\d+)/);
+                const heightMatch = codeString.match(/height\s*=\s*(\d+)/);
+                const bgMatch = codeString.match(/backgroundColor\s*=\s*['"]([^'"]+)['"]/);
+                const radiusMatch = codeString.match(/cornerRadius\s*=\s*(\d+)/);
+                const strokeMatch = codeString.match(/strokeColor\s*=\s*['"]([^'"]+)['"]/);
+                
+                if (widthMatch) defaults.width = widthMatch[1];
+                if (heightMatch) defaults.height = heightMatch[1];
+                if (bgMatch) defaults.backgroundColor = bgMatch[1];
+                if (radiusMatch) defaults.cornerRadius = radiusMatch[1];
+                if (strokeMatch) defaults.strokeColor = strokeMatch[1];
+                
+                console.log('Extracted values:', defaults);
+              }
+              
+              // Create a React element with the default values
+              const style = {
+                width: defaults.width ? `${defaults.width}px` : '200px',
+                height: defaults.height ? `${defaults.height}px` : '100px',
+                backgroundColor: defaults.backgroundColor || '#f0f0f0',
+                borderRadius: defaults.cornerRadius ? `${defaults.cornerRadius}px` : '8px',
+                border: defaults.strokeColor ? `4px solid ${defaults.strokeColor}` : '1px solid #ccc',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '10px auto'
-              }
-            }, textContent);
-            
-            console.log('Created React element with AI properties:', element);
-            return element;
+              };
+              
+              console.log('Final style:', style);
+              
+              return React.createElement('div', { style });
+              
+            } catch (err) {
+              console.error('Error executing AI code:', err);
+              return null;
+            }
           };
           
-          const parsedElement = parseJSXElement(extractedJSX);
+          const parsedElement = executeAICode(code);
           console.log('Final parsed element:', parsedElement);
+          
+          // Fallback if parsing fails
+          if (!parsedElement) {
+            console.log('Parsing failed, creating fallback element');
+            return React.createElement('div', {
+              style: {
+                padding: '20px',
+                backgroundColor: '#f0f0f0',
+                border: '2px dashed #ccc',
+                borderRadius: '8px',
+                textAlign: 'center',
+                margin: '10px auto'
+              }
+            }, 'AI Component (Fallback)');
+          }
           
           return parsedElement;
           
