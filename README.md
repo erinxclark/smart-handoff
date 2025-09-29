@@ -53,6 +53,19 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 - **Smart Fallbacks**: Graceful degradation when code generation fails
 - **Continuous Improvement**: AI learns from patterns and improves over time
 
+### 7. Intelligent Component Detection
+- **Pattern Recognition**: Automatically detects UI component types (button, input, card, badge, avatar, container)
+- **Confidence Scoring**: Provides 0-100% confidence scores with detailed reasoning
+- **Library Suggestions**: Recommends appropriate UI libraries (shadcn/ui, MUI, Chakra, custom)
+- **Component-Specific Generation**: Tailored code generation based on detected component type
+- **Semantic HTML**: Generates proper semantic elements and ARIA attributes
+
+### 8. Smart Image Handling
+- **Graceful Fallbacks**: Handles missing Figma images with beautiful SVG placeholders
+- **Placeholder Types**: Avatar, photo, icon, and generic placeholders with appropriate designs
+- **Developer Guidance**: Includes helpful comments and data attributes for manual replacement
+- **Figma Reference Preservation**: Maintains original Figma image references for easy updates
+
 ## Technical Details
 
 ### Component Structure
@@ -64,6 +77,8 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 - **`CodeEditor`**: Provides code editing capabilities with AI integration
 - **`ComponentStructureAnalyzer`**: AI service for code analysis and fixing
 - **`styleConverter`**: Utility for converting React inline styles to Tailwind CSS classes
+- **`componentDetector`**: Intelligent component pattern recognition and classification
+- **`imageHandler`**: Graceful handling of missing Figma images with SVG placeholders
 
 ### Key Technologies
 - **React 18** for modern UI components and hooks
@@ -99,9 +114,12 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 
 ### 2. AI Code Generation
 - Click "Generate Spec + Code" to trigger AI analysis
+- **Component Detection**: AI automatically identifies component types (button, input, card, etc.)
+- **Image Analysis**: Detects and handles Figma images with intelligent placeholders
 - AI analyzes Figma node properties and relationships
-- Generates clean, production-ready React components
+- Generates clean, production-ready React components with component-specific patterns
 - Preserves exact styling, positioning, and hierarchy
+- Includes semantic HTML and accessibility attributes based on component type
 
 ### 3. Live Preview & Comparison
 - View generated React code in the editor
