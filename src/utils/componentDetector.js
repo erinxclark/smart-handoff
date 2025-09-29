@@ -327,8 +327,8 @@ export function detectComponentPattern(figmaNode) {
       reasons.push(isCircle ? 'circular shape' : 'square shape');
     }
 
-    // Appropriate size
-    if (width >= 24 && width <= 80 && height >= 24 && height <= 80) {
+    // Appropriate size (more restrictive for avatars)
+    if (width >= 32 && width <= 64 && height >= 32 && height <= 64) {
       confidence += 25;
       reasons.push('avatar-like size');
     }
@@ -346,10 +346,13 @@ export function detectComponentPattern(figmaNode) {
       reasons.push('minimal or no text content');
     }
 
-    // Name hint
+    // Name hint (required for avatar detection)
     if (nameContainsType(name, 'avatar')) {
-      confidence += 15;
+      confidence += 25;
       reasons.push('name contains "avatar"');
+    } else {
+      // Reduce confidence if no name hint
+      confidence -= 10;
     }
 
     return { confidence, reasons };

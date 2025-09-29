@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import FigmaTreeViewer from './components/FigmaTreeViewer';
 import LiveCodePreview from './components/LiveCodePreview';
@@ -24,6 +25,50 @@ function App() {
   const [error, setError] = useState(null);
   const [showPerformance, setShowPerformance] = useState(false);
   const [selectedLibrary, setSelectedLibrary] = useState('none');
+  const [componentDetection, setComponentDetection] = useState(null);
+  const [libraryMapping, setLibraryMapping] = useState(null);
+  const [loadingFigma, setLoadingFigma] = useState(false);
+
+  // Fix common positioning issues in generated code
+  const fixPositioningIssues = (code) => {
+    if (!code) return code;
+    
+    let fixedCode = code;
+    
+    // Fix root element positioning - remove absolute positioning from root
+    // Look for the first div in the return statement and fix its positioning
+    fixedCode = fixedCode.replace(
+      /(<div\s+style=\{[^}]*position:\s*['"]absolute['"][^}]*\})/,
+      (match) => {
+        // Remove position: 'absolute' and positioning properties from root div
+        return match
+          .replace(/position:\s*['"]absolute['"]\s*,?\s*/g, '')
+          .replace(/left:\s*[^,}]+,?\s*/g, '')
+          .replace(/top:\s*[^,}]+,?\s*/g, '')
+          .replace(/right:\s*[^,}]+,?\s*/g, '')
+          .replace(/bottom:\s*[^,}]+,?\s*/g, '')
+          .replace(/transform:\s*[^,}]+,?\s*/g, '')
+          .replace(/,\s*}/g, '}') // Remove trailing commas
+          .replace(/{\s*,/g, '{') // Remove leading commas
+          .replace(/,\s*,/g, ',') // Remove double commas
+      }
+    );
+    
+    // Ensure root element has proper positioning
+    fixedCode = fixedCode.replace(
+      /(<div\s+style=\{[^}]*\})/,
+      (match) => {
+        if (!match.includes('position:')) {
+          // Add position: 'relative' if no position is specified
+          return match.replace('style={{', 'style={{ position: \'relative\', ');
+        }
+        return match;
+      }
+    );
+    
+    console.log('Fixed positioning issues in code');
+    return fixedCode;
+  };
 
   const extractFileId = (url) => {
     try {
@@ -42,6 +87,9 @@ function App() {
       return;
     }
 
+    setLoadingFigma(true);
+    setError(null);
+
     try {
       const response = await axios.get(`https://api.figma.com/v1/files/${fileId}`, {
         headers: {
@@ -55,6 +103,8 @@ function App() {
       console.error('❌ Fetch error:', err);
       setError('Failed to fetch file. Check your URL and token.');
       setFileData(null);
+    } finally {
+      setLoadingFigma(false);
     }
   };
 
@@ -82,22 +132,54 @@ function App() {
   // React Query mutation for code generation
   const codeGenerationMutation = useMutation({
     mutationFn: async (nodeData) => {
+      // Generate the actual code (detection happens inside generateSpecAndCode)
       return await generateSpecAndCode(nodeData, selectedLibrary);
     },
     onSuccess: (output) => {
       setAiOutput(output);
       
+      // Extract detection results from AI output
+      try {
+        const detectionMatch = output.match(/COMPONENT ANALYSIS:\s*- Detected Component Type: ([^\n]+)\s*- Confidence: (\d+)%\s*- Reasoning: ([^\n]+)/);
+        if (detectionMatch) {
+          setComponentDetection({
+            componentType: detectionMatch[1].toLowerCase().trim(),
+            confidence: parseInt(detectionMatch[2]),
+            reasoning: detectionMatch[3].trim()
+          });
+        }
+        
+        const libraryMatch = output.match(/Using ([^\s]+) component library/);
+        if (libraryMatch) {
+          setLibraryMapping({
+            usesLibrary: true,
+            library: libraryMatch[1]
+          });
+        }
+      } catch (error) {
+        console.log('Could not parse detection results from AI output');
+      }
+      
       // Extract the code from the output
       const codeMatch = output.match(/```jsx\n([\s\S]*?)```/);
       if (codeMatch) {
-        const extractedCode = codeMatch[1].trim();
+        let extractedCode = codeMatch[1].trim();
+        
+        // Fix common positioning issues
+        extractedCode = fixPositioningIssues(extractedCode);
+        
         console.log('Extracted code from AI output:', extractedCode);
+        console.log('Full AI output for debugging:', output);
         setExtractedCode(extractedCode);
       } else {
         // Try alternative format
         const altCodeMatch = output.match(/```(javascript|js)\n([\s\S]*?)```/);
         if (altCodeMatch) {
-          const extractedCode = altCodeMatch[2].trim();
+          let extractedCode = altCodeMatch[2].trim();
+          
+          // Fix common positioning issues
+          extractedCode = fixPositioningIssues(extractedCode);
+          
           console.log('Extracted code from AI output (alt format):', extractedCode);
           setExtractedCode(extractedCode);
         } else {
@@ -110,6 +192,12 @@ function App() {
     onError: (error) => {
       console.error('Error generating code:', error);
       setError(error.message);
+    },
+    onMutate: () => {
+      setLoadingAI(true);
+      setError(null);
+      setComponentDetection(null);
+      setLibraryMapping(null);
     },
     onSettled: () => {
       setLoadingAI(false);
@@ -143,233 +231,415 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-primary-dark to-primary py-6 shadow-md sticky top-0 z-50">
-        <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Modern Header */}
+      <motion.header 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="bg-white/80 backdrop-blur-md border-b border-slate-200/50 sticky top-0 z-50"
+      >
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <motion.div 
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                className="bg-gradient-to-br from-blue-600 to-purple-600 h-12 w-12 rounded-xl flex items-center justify-center font-bold text-white text-xl shadow-lg"
+              >
+                S
+              </motion.div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
+                  Smart Handoff
+                </h1>
+                <p className="text-slate-500 text-sm font-medium">AI-Powered Design to Code</p>
+              </div>
+            </div>
+            
+            {/* Dark Mode Toggle (placeholder for future) */}
           <div className="flex items-center gap-3">
-            <div className="bg-white h-10 w-10 rounded-lg flex items-center justify-center font-bold text-primary text-xl">S</div>
-            <div>
-              <h1 className="text-white text-2xl font-bold">SmartHandoff</h1>
-              <p className="text-white/80 text-sm">AI-Powered Design Handoff Tool</p>
+              <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-slate-500 font-medium">Ready</span>
             </div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Input Section */}
-        <div className="bg-white rounded-xl shadow-md p-8 mb-8 relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-accent"></div>
-          <form onSubmit={fetchFigmaData} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Figma File Link</label>
-              <div className="relative">
+      {/* Main Content - Modern Split View */}
+      <main className="container mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 min-h-[calc(100vh-140px)]">
+          
+          {/* LEFT PANEL - Compact Controls (25%) */}
+          <motion.div 
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="lg:col-span-1 space-y-4"
+          >
+            
+            {/* Compact Figma Status */}
+            {!fileData ? (
+              <div className="bg-white rounded-xl shadow-lg border border-slate-200/50 p-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-6 w-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M15.852 8.98h-4.588V0h4.588c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.49-4.49 4.49zM12.735 7.51h3.117c1.665 0 3.019-1.355 3.019-3.019s-1.355-3.019-3.019-3.019h-3.117V7.51zm0 1.47H8.148c-2.476 0-4.49-2.014-4.49-4.49S5.672 0 8.148 0h4.588v8.98zm-4.587-7.51c-1.665 0-3.019 1.355-3.019 3.019s1.354 3.02 3.019 3.02h3.117V1.47H8.148zm4.587 15.04H8.148c-2.476 0-4.49-2.014-4.49-4.49s2.014-4.49 4.49-4.49h4.588v8.98zm-4.587-7.51c-1.665 0-3.019 1.355-3.019 3.019s1.355 3.019 3.019 3.019h3.117v-6.038H8.148zm7.704 0h-3.117v-1.47h3.117c1.665 0 3.019 1.355 3.019 3.019s-1.354 3.019-3.019 3.019zm0-4.49h-3.117V7.51h3.117c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.49-4.49 4.49z"/>
+                    </svg>
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-800">Figma Setup</h3>
+                </div>
+                
+                <form onSubmit={fetchFigmaData} className="space-y-3">
                 <input
                   type="text"
-                  className="input-field"
-                  placeholder="https://www.figma.com/file/..."
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 focus:bg-white"
+                    placeholder="Figma file URL..."
                   value={fileUrl}
                   onChange={(e) => setFileUrl(e.target.value)}
                 />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Figma Access Token</label>
+                  
               <input
-                type="text"
-                className="input-field"
-                placeholder="figma_pat_..."
+                    type="password"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 focus:bg-white"
+                    placeholder="Access token..."
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
-            </div>
-            <button type="submit" className="button">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14"></path>
-                <path d="m12 5 7 7-7 7"></path>
-              </svg>
-              Parse Figma File
-            </button>
+                  
+                  <motion.button 
+                    type="submit"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={!fileUrl || !token}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingFigma ? 'Loading...' : 'Load File'}
+                  </motion.button>
           </form>
         </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-danger text-white p-4 rounded-lg shadow-md mb-8 flex items-center gap-2">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            {error}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-800">Connected</p>
+                    <p className="text-xs text-green-600 truncate">{fileData.name}</p>
+                  </div>
+                </div>
           </div>
         )}
 
-        {/* Success Message */}
-        {fileData && (
-          <div className="bg-gradient-to-r from-success to-green-400 text-white p-4 rounded-lg shadow-md mb-8 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            {/* Compact Configuration */}
+            <div className="bg-white rounded-xl shadow-lg border border-slate-200/50 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-5 w-5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <strong>Figma File Loaded:</strong> {fileData.name}
+                </div>
+                <h3 className="text-sm font-semibold text-slate-800">Library</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  { value: 'none', label: 'Auto', icon: '🤖' },
+                  { value: 'shadcn', label: 'shadcn', icon: '⚡' },
+                  { value: 'mui', label: 'MUI', icon: '🎨' },
+                  { value: 'chakra', label: 'Chakra', icon: '✨' }
+                ].map((option) => (
+                  <motion.button
+                    key={option.value}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedLibrary(option.value)}
+                    className={`p-2 rounded-lg border transition-all duration-200 text-center ${
+                      selectedLibrary === option.value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                    }`}
+                  >
+                    <div className="text-sm">{option.icon}</div>
+                    <div className="text-xs font-medium">{option.label}</div>
+                  </motion.button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-              <span>{new Date().toLocaleString()}</span>
-            </div>
-          </div>
-        )}
 
-        {/* Design Assets Section */}
-        {fileData && (
-          <>
-            <div className="section-title">Design Assets</div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* File Tree */}
-              <div className="panel">
-                <div className="panel-header">
-                  Figma File Structure
-                  <span className="bg-primary-light text-white text-xs px-2 py-1 rounded-full">
-                    {fileData.document.children.length} Components
+            {/* Compact Detection Results */}
+            {componentDetection && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="bg-white rounded-xl shadow-lg border border-slate-200/50 p-3"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-5 w-5 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-800">Detection</h3>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">
+                    {componentDetection.componentType === 'button' && '🔘'}
+                    {componentDetection.componentType === 'input' && '📝'}
+                    {componentDetection.componentType === 'card' && '🃏'}
+                    {componentDetection.componentType === 'badge' && '🏷️'}
+                    {componentDetection.componentType === 'avatar' && '👤'}
+                    {componentDetection.componentType === 'container' && '📦'}
+                    {componentDetection.componentType === 'unknown' && '❓'}
                   </span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-800 capitalize">
+                        {componentDetection.componentType}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        componentDetection.confidence >= 90 ? 'bg-green-100 text-green-800' :
+                        componentDetection.confidence >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {componentDetection.confidence}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="panel-content">
-                  <FigmaTreeViewer
-                    document={fileData.document}
-                    onSelect={handleNodeSelect}
-                  />
-                </div>
-              </div>
+                
+                {libraryMapping && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                    <span>{libraryMapping.usesLibrary ? '📚' : '🛠️'}</span>
+                    <span>{libraryMapping.usesLibrary ? libraryMapping.library || 'Library' : 'Custom'}</span>
+                  </div>
+                )}
+              </motion.div>
+            )}
 
-              {/* Preview */}
-              <div className="panel">
-                <div className="panel-header">
-                  Figma Preview
-                  {selectedNodeName && (
-                    <span className="bg-primary-light text-white text-xs px-2 py-1 rounded-full">{selectedNodeName}</span>
-                  )}
-                </div>
-                <div className="panel-content">
-                  {thumbnailUrl ? (
-                    <div className="flex flex-col items-center">
-                      <img src={thumbnailUrl} alt="Figma Preview" className="max-w-full rounded-lg shadow" />
-                      <p className="mt-4 text-gray-600 italic bg-white px-4 py-2 rounded-lg shadow-sm">{selectedNodeName}</p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400">
-                      Select a component to preview
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* Error Message */}
+            <AnimatePresence>
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl flex items-center gap-3"
+                >
+                  <svg className="h-5 w-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-medium">{error}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* AI Analysis & Code Section */}
-            {selectedNodeData && (
-              <>
-                <div className="section-title">AI Analysis & Code</div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                  {/* AI Output */}
-                  <div className="panel">
-                    <div className="panel-header">
-                      AI Generated Specs & Code
-                      <span className="bg-primary-light text-white text-xs px-2 py-1 rounded-full">Auto-Generated</span>
-                    </div>
-                    <div className="panel-content">
-                      <div className="flex border-b border-gray-200 mb-4">
-                        <button className="px-4 py-2 text-primary">Specs</button>
+            {/* Success Message */}
+            <AnimatePresence>
+              {fileData && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="font-medium">File loaded: {fileData.name}</span>
+                  </div>
+                  <span className="text-sm text-green-600">{new Date().toLocaleTimeString()}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+          </motion.div>
+
+          {/* RIGHT PANEL - Code & Preview (75%) */}
+          <motion.div 
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="lg:col-span-3 space-y-4"
+          >
+
+            {/* TOP ROW: Generated Code + Generate Code side by side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              
+              {/* Generated Code - Left side */}
+              {extractedCode && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="bg-white rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden"
+                >
+                  <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                    <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                        <div className="h-5 w-5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+                        </div>
+                        <h3 className="text-sm font-semibold text-slate-800">Generated Code</h3>
                       </div>
-                      <div className="prose max-w-none">
-                        {aiOutput ? (
-                          <AIGeneratedCodePreview 
-                            code={aiOutput} 
-                            componentName={selectedNodeName || 'Component'}
-                          />
-                        ) : (
-                          <div className="space-y-4">
-                            {/* Component Library Selection */}
-                            <div className="text-center">
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Component Library:
-                              </label>
-                              <select 
-                                value={selectedLibrary} 
-                                onChange={(e) => setSelectedLibrary(e.target.value)}
-                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                              >
-                                <option value="none">Auto-Detect + Custom Fallback</option>
-                                <option value="shadcn">shadcn/ui</option>
-                                <option value="mui">Material-UI</option>
-                                <option value="chakra">Chakra UI</option>
-                              </select>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {selectedLibrary === 'none' ? 'Auto-detect library components (high confidence) or generate generic div elements' : 
-                                 selectedLibrary === 'shadcn' ? 'Generate shadcn/ui components' :
-                                 selectedLibrary === 'mui' ? 'Generate Material-UI components' :
-                                 'Generate Chakra UI components'}
-                              </p>
-                            </div>
+            </div>
+          </div>
+                  <div className="p-4 max-h-[300px] overflow-auto">
+                    <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono">
+                      <code>{extractedCode}</code>
+                    </pre>
+                  </div>
+                </motion.div>
+              )}
 
+              {/* Generate Code - Right side */}
+        {fileData && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="bg-white rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden"
+                >
+                  <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-5 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M15.852 8.98h-4.588V0h4.588c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.49-4.49 4.49zM12.735 7.51h3.117c1.665 0 3.019-1.355 3.019-3.019s-1.355-3.019-3.019-3.019h-3.117V7.51zm0 1.47H8.148c-2.476 0-4.49-2.014-4.49-4.49S5.672 0 8.148 0h4.588v8.98zm-4.587-7.51c-1.665 0-3.019 1.355-3.019 3.019s1.354 3.02 3.019 3.02h3.117V1.47H8.148zm4.587 15.04H8.148c-2.476 0-4.49-2.014-4.49-4.49s2.014-4.49 4.49-4.49h4.588v8.98zm-4.587-7.51c-1.665 0-3.019 1.355-3.019 3.019s1.355 3.019 3.019 3.019h3.117v-6.038H8.148zm7.704 0h-3.117v-1.47h3.117c1.665 0 3.019 1.355 3.019 3.019s-1.354 3.019-3.019 3.019zm0-4.49h-3.117V7.51h3.117c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.49-4.49 4.49z"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-sm font-semibold text-slate-800">Generate Code</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 max-h-[300px] overflow-auto">
+                    <div className="space-y-3">
+                      <div className="text-xs text-slate-600">
+                        {fileData.document.children.length} components available
+                      </div>
+                      <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg">
+                        <FigmaTreeViewer
+                          document={fileData.document}
+                          onSelect={handleNodeSelect}
+                        />
+                      </div>
+                      
+                      {selectedNodeData && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-3 bg-slate-50 rounded-lg"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-xs font-medium text-slate-800">{selectedNodeName || 'Component'}</span>
+                          </div>
+                          
+                          {thumbnailUrl && (
+                            <div className="mb-2">
+                              <img 
+                                src={thumbnailUrl} 
+                                alt={`Preview of ${selectedNodeName}`}
+                                className="w-full rounded-lg shadow-sm border border-slate-200"
+                              />
+                            </div>
+                          )}
+                          
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleGenerateCode}
+                            disabled={loadingAI}
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
                             {loadingAI ? (
-                              <div className="flex items-center justify-center gap-2 text-gray-400">
-                                <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <>
+                                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Generating specs and code...
-                              </div>
+                                Generating...
+                              </>
                             ) : (
-                              <div className="text-center">
-                                <button onClick={handleGenerateCode} className="button">
-                                  Generate Spec + Code
-                                </button>
-                              </div>
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                Generate Code
+                              </>
                             )}
-                          </div>
-                        )}
+                          </motion.button>
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* BOTTOM ROW: Full-width Live Preview with Figma + React side by side */}
+            {extractedCode && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="bg-white rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden"
+              >
+                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold text-white">Live Preview</h2>
+                        <p className="text-emerald-100 text-sm">Real-time React rendering</p>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Code Editor - Now next to AI Output */}
-                  <div className="panel">
-                    <div className="panel-header">
-                      Editable Code
-                      <span className="bg-primary-light text-white text-xs px-2 py-1 rounded-full">Live</span>
-                    </div>
-                    <div className="panel-content">
-                      <CodeEditor
-                        code={extractedCode}
-                        onChange={(newCode) => setExtractedCode(newCode)}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Live Preview - Now taking full width below */}
-                  <div className="panel lg:col-span-2">
-                    <div className="panel-header">
-                      Live Preview
-                      <span className="bg-primary-light text-white text-xs px-2 py-1 rounded-full">Interactive</span>
-                    </div>
-                    <div className="panel-content">
-                      <LiveCodePreview 
-                        code={extractedCode} 
-                        figmaPreviewUrl={thumbnailUrl}
-                      />
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 bg-white/60 rounded-full animate-pulse"></div>
+                      <span className="text-white text-sm font-medium">Live</span>
                     </div>
                   </div>
                 </div>
-              </>
+                
+                <div className="p-6">
+                  <LiveCodePreview 
+                    code={extractedCode} 
+                    figmaPreviewUrl={thumbnailUrl}
+                  />
+                </div>
+              </motion.div>
             )}
-          </>
-        )}
+
+            {/* Generated Code - Secondary */}
+            {aiOutput && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="bg-white rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden"
+              >
+                <AIGeneratedCodePreview 
+                  code={extractedCode} 
+                  componentName={selectedNodeName || 'Component'}
+                />
+              </motion.div>
+            )}
+
+          </motion.div>
+        </div>
       </main>
 
       {/* Performance Monitor */}
