@@ -4,35 +4,48 @@ An AI-powered tool for seamless design-to-development handoff that converts Figm
 
 ## Overview
 
-Smart Handoff revolutionizes the design-to-development workflow by:
+Smart Handoff revolutionizes the design-to-development workflow with a modern, optimized interface that prioritizes the live preview experience:
+
 - **AI-Powered Code Generation**: Automatically converts Figma designs into clean, production-ready React components
-- **Live Preview System**: Real-time React Live rendering with instant visual feedback
+- **Hero Live Preview**: Full-width live preview section with side-by-side Figma vs React comparison
+- **Compact Control Panel**: Streamlined 25% left panel with smart state management
 - **Intelligent Positioning**: Preserves Figma hierarchy with proper CSS positioning (relative containers, absolute children)
-- **Visual Comparison**: Side-by-side comparison between Figma designs and generated React components
-- **Error Recovery**: AI-powered code analysis and fixing for robust component generation
+- **Visual Comparison**: Core Compare Visuals functionality with CodeSandbox deployment
+- **Error Recovery**: AI-powered code analysis and positioning fixes for robust component generation
 
 ## Key Features
 
-### 1. Figma Integration
+### 1. Modern UI Layout & Experience
+- **Optimized 4-Column Grid**: 25% compact controls, 75% hero preview space
+- **Smart State Management**: Figma setup hides after connection, showing clean status indicators
+- **Top Row Efficiency**: Generated Code + Generate Code panels side-by-side for maximum workflow efficiency
+- **Hero Live Preview**: Full-width bottom section with Compare Visuals functionality
+- **Professional Design**: Modern gradients, smooth animations, and polished interface
+- **Responsive Layout**: Adapts beautifully to desktop, tablet, and mobile screens
+- **Maximum Preview Space**: 75% screen width dedicated to live preview and comparison
+
+### 2. Figma Integration
 - Tree view of Figma document structure
 - Support for groups and frames
 - Preservation of visual hierarchy
 - Real-time design updates
 
-### 2. Code Generation
+### 3. Code Generation
 - Automatic React component generation
 - Exact styling preservation
 - Proper handling of nested elements
 - Support for text styles and fonts
+- **Positioning Fixes**: Automatic correction of off-screen rendering issues
+- **Robust Error Handling**: AI-powered code analysis and fixing
 
-### 3. AI-Powered Live Preview
+### 4. AI-Powered Live Preview
 - **React Live Integration**: Real-time JSX rendering with instant updates
 - **Smart Code Cleaning**: Automatic removal of comments, imports, and formatting issues
 - **Error Handling**: Graceful fallbacks and AI-powered code fixing
 - **Visual Comparison**: Side-by-side Figma vs React component comparison
 - **Interactive Testing**: Live editing and immediate visual feedback
 
-### 4. Tailwind CSS Integration
+### 5. Tailwind CSS Integration
 - **Dual Format Support**: Generate components with inline styles or Tailwind CSS classes
 - **Smart Style Conversion**: Automatic conversion of CSS properties to Tailwind utilities
 - **Standard Value Mapping**: Common values converted to Tailwind standards (16px → p-4)
@@ -40,33 +53,33 @@ Smart Handoff revolutionizes the design-to-development workflow by:
 - **Real-time Toggle**: Switch between inline styles and Tailwind CSS with radio buttons
 - **Mixed Style Support**: Handle partial conversions with both className and style attributes
 
-### 5. Intelligent Positioning & Layout
+### 6. Intelligent Positioning & Layout
 - **Hierarchy Preservation**: Maintains Figma's parent-child relationships
 - **CSS Positioning**: Converts Figma coordinates to proper CSS (relative containers, absolute children)
 - **Root Element Normalization**: Ensures components always render within preview bounds
 - **Z-Index Management**: Preserves layer stacking order from Figma
 - **Responsive Layout**: Handles multi-element components with proper positioning
 
-### 6. AI-Powered Code Analysis
+### 7. AI-Powered Code Analysis
 - **Component Structure Analysis**: AI identifies and fixes structural issues
 - **Code Validation**: Automatic syntax checking and error detection
 - **Smart Fallbacks**: Graceful degradation when code generation fails
 - **Continuous Improvement**: AI learns from patterns and improves over time
 
-### 7. Intelligent Component Detection
+### 8. Intelligent Component Detection
 - **Pattern Recognition**: Automatically detects UI component types (button, input, card, badge, avatar, container)
 - **Confidence Scoring**: Provides 0-100% confidence scores with detailed reasoning
 - **Library Suggestions**: Recommends appropriate UI libraries (shadcn/ui, MUI, Chakra, custom)
 - **Component-Specific Generation**: Tailored code generation based on detected component type
 - **Semantic HTML**: Generates proper semantic elements and ARIA attributes
 
-### 8. Smart Image Handling
+### 9. Smart Image Handling
 - **Graceful Fallbacks**: Handles missing Figma images with beautiful SVG placeholders
 - **Placeholder Types**: Avatar, photo, icon, and generic placeholders with appropriate designs
 - **Developer Guidance**: Includes helpful comments and data attributes for manual replacement
 - **Figma Reference Preservation**: Maintains original Figma image references for easy updates
 
-### 9. Component Library Integration
+### 10. Component Library Integration
 - **Real Component Libraries**: Generates actual shadcn/ui, Material-UI, and Chakra UI components
 - **Intelligent Mapping**: Converts detected components to proper library implementations
 - **Import Management**: Automatically generates required import statements
