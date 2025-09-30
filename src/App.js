@@ -10,6 +10,10 @@ import { fetchNodeThumbnail } from './services/fetchNodeThumbnail';
 import PerformanceMonitor from './components/PerformanceMonitor';
 import AIGeneratedCodePreview from './components/AIGeneratedCodePreview';
 import { enforceExactValues, validateExactValues, debugAlignmentValues } from './utils/exactValueEnforcer';
+import { enhanceWithAccessibility } from './utils/accessibilityEnhancer';
+import { extractDesignTokens } from './utils/tokenExtractor';
+import DesignTokensPanel from './components/DesignTokensPanel';
+
 
 function App() {
   const [fileUrl, setFileUrl] = useState('');
@@ -28,45 +32,61 @@ function App() {
   const [componentDetection, setComponentDetection] = useState(null);
   const [libraryMapping, setLibraryMapping] = useState(null);
   const [loadingFigma, setLoadingFigma] = useState(false);
+  const [accessibilityReport, setAccessibilityReport] = useState(null);
+  const [designTokens, setDesignTokens] = useState(null);
 
   // Fix common positioning issues in generated code
   const fixPositioningIssues = (code) => {
+    console.log('=== POSITIONING FIX DEBUG ===');
+    console.log('Input code:', code);
+
     if (!code) return code;
-    
+
     let fixedCode = code;
-    
-    // Fix root element positioning - remove absolute positioning from root
-    // Look for the first div in the return statement and fix its positioning
-    fixedCode = fixedCode.replace(
-      /(<div\s+style=\{[^}]*position:\s*['"]absolute['"][^}]*\})/,
-      (match) => {
-        // Remove position: 'absolute' and positioning properties from root div
-        return match
-          .replace(/position:\s*['"]absolute['"]\s*,?\s*/g, '')
-          .replace(/left:\s*[^,}]+,?\s*/g, '')
-          .replace(/top:\s*[^,}]+,?\s*/g, '')
-          .replace(/right:\s*[^,}]+,?\s*/g, '')
-          .replace(/bottom:\s*[^,}]+,?\s*/g, '')
-          .replace(/transform:\s*[^,}]+,?\s*/g, '')
-          .replace(/,\s*}/g, '}') // Remove trailing commas
-          .replace(/{\s*,/g, '{') // Remove leading commas
-          .replace(/,\s*,/g, ',') // Remove double commas
+
+    // Find the root element (first element with style attribute)
+    const rootElementMatch = fixedCode.match(/(<(article|div|section|main|header|footer|nav)[^>]*style=\{[^}]*\}[^>]*>)/);
+
+    if (rootElementMatch) {
+      const originalRootElement = rootElementMatch[1];
+      console.log('Found root element:', originalRootElement);
+
+      // Only remove positioning from this root element
+      const fixedRootElement = originalRootElement
+        .replace(/position:\s*['"]absolute['"]\s*,?\s*/g, '')
+        .replace(/left:\s*[^,}]+,?\s*/g, '')
+        .replace(/top:\s*[^,}]+,?\s*/g, '')
+        .replace(/right:\s*[^,}]+,?\s*/g, '')
+        .replace(/bottom:\s*[^,}]+,?\s*/g, '')
+        .replace(/transform:\s*[^,}]+,?\s*/g, '')
+        .replace(/,\s*}/g, '}')
+        .replace(/{\s*,/g, '{')
+        .replace(/,\s*,/g, ',');
+
+      console.log('Fixed root element:', fixedRootElement);
+
+      // Replace only the root element, leave all others untouched
+      fixedCode = fixedCode.replace(originalRootElement, fixedRootElement);
+
+      // Ensure root has position: relative if no position specified
+      if (!fixedRootElement.includes('position:')) {
+        // Add position: relative INSIDE the style object
+        // Find the opening of the style object: style={{
+        fixedCode = fixedCode.replace(
+          /(<[^>]*style=\{\{)/,  // Match style={{
+          '$1 position: \'relative\', '  // Add inside the braces
+        );
+        console.log('Added position relative to root element');
       }
-    );
-    
-    // Ensure root element has proper positioning
-    fixedCode = fixedCode.replace(
-      /(<div\s+style=\{[^}]*\})/,
-      (match) => {
-        if (!match.includes('position:')) {
-          // Add position: 'relative' if no position is specified
-          return match.replace('style={{', 'style={{ position: \'relative\', ');
-        }
-        return match;
-      }
-    );
-    
-    console.log('Fixed positioning issues in code');
+    }
+
+    // After fixing root, verify children have positioning
+    const childDivs = fixedCode.match(/<div[^>]*position:\s*['"]absolute['"]/g);
+    console.log(`Found ${childDivs?.length || 0} correctly positioned child elements`);
+
+    console.log('Fixed positioning - only modified root element');
+    console.log('Output code:', fixedCode);
+    console.log('=== END DEBUG ===');
     return fixedCode;
   };
 
@@ -108,24 +128,70 @@ function App() {
     }
   };
 
+  // Safe JSON serialization to handle circular references
+  const safeStringify = (obj, maxDepth = 3) => {
+    const seen = new WeakSet();
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular Reference]';
+        }
+        seen.add(value);
+      }
+      return value;
+    }, 2);
+  };
+
   const handleNodeSelect = async (node) => {
-    console.log('🧩 Selected node:', node);
-    setSelectedNodeId(node.id);
-    setSelectedNodeName(node.name);
+    console.log('=== NODE SELECTION DEBUG ===');
+    console.log('Selected node:', safeStringify(node));
     
-    const fileId = extractFileId(fileUrl);
-    if (fileId && token) {
-      try {
+    try {
+      setSelectedNodeId(node.id);
+      setSelectedNodeName(node.name);
+      
+      const fileId = extractFileId(fileUrl);
+      if (fileId && token) {
+        console.log('Fetching node data for:', node.id);
+        
         const nodeData = await fetchNodeById(fileId, node.id, token);
+        console.log('Received node data:', safeStringify(nodeData));
+        
+        // CRITICAL: Check if nodeData is valid
+        if (!nodeData || !nodeData.absoluteBoundingBox) {
+          console.error('Invalid node data - missing absoluteBoundingBox');
+          setError('Unable to process this node. Try selecting a frame or component instead of a group.');
+          return;
+        }
+        
         setSelectedNodeData(nodeData);
         
-        // Fetch thumbnail
-        const thumbnail = await fetchNodeThumbnail(fileId, node.id, token);
-        setThumbnailUrl(thumbnail);
-      } catch (error) {
-        console.error('Error fetching node data:', error);
-        setError('Failed to fetch node data. Please try again.');
+        // Fetch thumbnail with error handling
+        try {
+          const thumbnail = await fetchNodeThumbnail(fileId, node.id, token);
+          setThumbnailUrl(thumbnail);
+        } catch (thumbError) {
+          console.warn('Thumbnail fetch failed, continuing without it:', thumbError);
+          setThumbnailUrl(null);
+        }
+
+        // Extract design tokens with error handling
+        try {
+          console.log('🎨 TOKENS: Extracting design tokens...');
+          const tokens = extractDesignTokens(nodeData);
+          setDesignTokens(tokens);
+          console.log('🎨 TOKENS: Extraction complete', tokens.summary);
+        } catch (tokenError) {
+          console.warn('Token extraction failed:', tokenError);
+          setDesignTokens(null);
+        }
       }
+    } catch (error) {
+      console.error('=== ERROR IN NODE SELECTION ===');
+      console.error('Error:', error);
+      console.error('Error stack:', error.stack);
+      setError(`Failed to load component: ${error.message}`);
+      setSelectedNodeData(null);
     }
   };
 
@@ -208,6 +274,31 @@ function App() {
         } else {
           console.log('⚠️ ALIGNMENT: No Figma node data available for alignment enforcement');
         }
+
+        // Enhance with accessibility features
+        try {
+          console.log('♿ ACCESSIBILITY: Starting accessibility enhancement...');
+          const accessibilityResult = enhanceWithAccessibility(
+            extractedCode, 
+            result.componentDetection || componentDetection, 
+            result.figmaNode
+          );
+          
+          if (accessibilityResult.enhancedCode !== extractedCode) {
+            console.log('♿ ACCESSIBILITY: Applied accessibility enhancements');
+            extractedCode = accessibilityResult.enhancedCode;
+          }
+          
+          setAccessibilityReport(accessibilityResult.accessibilityReport);
+          console.log('♿ ACCESSIBILITY: Enhancement complete, score:', accessibilityResult.accessibilityReport.score);
+        } catch (error) {
+          console.error('❌ ACCESSIBILITY: Error enhancing accessibility:', error);
+          setAccessibilityReport({
+            score: 0,
+            issues: ['Accessibility enhancement failed: ' + error.message],
+            improvements: []
+          });
+        }
         
         console.log('Extracted code from AI output:', extractedCode);
         console.log('Full AI output for debugging:', output);
@@ -239,6 +330,8 @@ function App() {
       setError(null);
       setComponentDetection(null);
       setLibraryMapping(null);
+      setAccessibilityReport(null);
+      // Keep design tokens - they're based on the selected component, not generated code
     },
     onSettled: () => {
       setLoadingAI(false);
@@ -250,6 +343,20 @@ function App() {
       setError('No node selected. Please select a node first.');
       return;
     }
+    
+    // Validate node data has minimum required fields
+    if (!selectedNodeData.absoluteBoundingBox) {
+      setError('Selected component is missing positioning data. Try selecting a Frame or Component instead of a Group.');
+      return;
+    }
+    
+    console.log('Generating code with validated data:', {
+      hasAbsoluteBoundingBox: !!selectedNodeData.absoluteBoundingBox,
+      hasFills: !!selectedNodeData.fills,
+      hasChildren: !!selectedNodeData.children,
+      childCount: selectedNodeData.children?.length || 0,
+      nodeType: selectedNodeData.type
+    });
 
     setLoadingAI(true);
     setError(null);
@@ -461,6 +568,91 @@ function App() {
               </motion.div>
             )}
 
+            {/* Accessibility Report */}
+            {accessibilityReport && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="bg-white rounded-xl shadow-lg border border-slate-200/50 p-3"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-5 w-5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-800">Accessibility</h3>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ml-auto ${
+                    accessibilityReport.score >= 90 ? 'bg-green-100 text-green-800' :
+                    accessibilityReport.score >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {accessibilityReport.score}/100
+                  </span>
+                </div>
+                
+                <div className="space-y-1">
+                  {accessibilityReport.semanticHTML && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-green-500">✅</span>
+                      <span className="text-slate-600">Semantic HTML</span>
+                    </div>
+                  )}
+                  {accessibilityReport.ariaLabels && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-green-500">✅</span>
+                      <span className="text-slate-600">ARIA labels</span>
+                    </div>
+                  )}
+                  {accessibilityReport.keyboardAccessible && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-green-500">✅</span>
+                      <span className="text-slate-600">Keyboard accessible</span>
+                    </div>
+                  )}
+                  {accessibilityReport.colorContrast && (
+                    <div className="flex items-center gap-2 text-xs">
+                      {accessibilityReport.colorContrast.meetsAA ? (
+                        <span className="text-green-500">✅</span>
+                      ) : (
+                        <span className="text-yellow-500">⚠️</span>
+                      )}
+                      <span className="text-slate-600">
+                        Contrast: {accessibilityReport.colorContrast.ratio}:1
+                      </span>
+                    </div>
+                  )}
+                  {accessibilityReport.warnings.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {accessibilityReport.warnings.map((warning, index) => (
+                        <div key={index} className="flex items-center gap-2 text-xs text-yellow-700">
+                          <span>⚠️</span>
+                          <span>{warning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {accessibilityReport.issues.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {accessibilityReport.issues.map((issue, index) => (
+                        <div key={index} className="flex items-center gap-2 text-xs text-red-700">
+                          <span>❌</span>
+                          <span>{issue}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Design Tokens Panel */}
+            <DesignTokensPanel 
+              tokens={designTokens} 
+              componentName={selectedNodeName}
+            />
+
             {/* Error Message */}
             <AnimatePresence>
               {error && (
@@ -583,6 +775,17 @@ function App() {
                             <span className="text-xs font-medium text-slate-800">{selectedNodeName || 'Component'}</span>
                           </div>
                           
+                          {selectedNodeData && (
+                            <div className="text-xs text-slate-600 mb-2">
+                              Node type: {selectedNodeData.type}
+                              {selectedNodeData.type === 'GROUP' && (
+                                <div className="text-yellow-600 mt-1">
+                                  ⚠️ Groups may have limited data. For best results, use Frames or Components.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           {thumbnailUrl && (
                             <div className="mb-2">
                               <img 
@@ -659,6 +862,8 @@ function App() {
                   <LiveCodePreview 
                     code={extractedCode} 
                     figmaPreviewUrl={thumbnailUrl}
+                    componentDetection={componentDetection}
+                    figmaNode={selectedNodeData}
                   />
                 </div>
               </motion.div>

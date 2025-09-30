@@ -3,90 +3,87 @@
  * 
  * This component displays and manages the Figma document structure as a tree view.
  * It includes functionality for:
- * - Displaying the Figma document hierarchy
- * - Handling node selection and interaction
- * - Preserving Figma's visual hierarchy
- * - Supporting search and filtering
- * 
- * Key Features:
- * 1. Tree Structure:
- *    - Displays Figma nodes in a hierarchical tree
- *    - Maintains proper visual hierarchy
- *    - Supports nested groups and frames
- * 
- * 2. Node Normalization:
- *    - Processes Figma nodes into a consistent format
- *    - Preserves node metadata and properties
- *    - Handles special node types (groups, frames)
- * 
- * 3. Interaction:
- *    - Supports node selection
- *    - Provides search functionality
- *    - Maintains expanded/collapsed states
+ * - Displaying the Figma document hierarchy in correct order
+ * - Expand/collapse functionality for nodes
+ * - Proper visual hierarchy with icons
+ * - Node selection for code generation
  */
 
-import React from 'react';
-
-const normalizeNode = (node) => {
-  if (!node) return null;
-
-  // Create a new node with enhanced metadata
-  const normalizedNode = {
-    ...node,
-    children: [],
-    isGroup: node.type === 'GROUP' || node.type === 'FRAME',
-    isFrame: node.type === 'FRAME',
-    parentType: node.parent ? node.parent.type : null,
-    absoluteBoundingBox: node.absoluteBoundingBox || null,
-    relativeTransform: node.relativeTransform || null,
-    layoutMode: node.layoutMode || null,
-    primaryAxisSizingMode: node.primaryAxisSizingMode || null,
-    counterAxisSizingMode: node.counterAxisSizingMode || null,
-    primaryAxisAlignItems: node.primaryAxisAlignItems || null,
-    counterAxisAlignItems: node.counterAxisAlignItems || null,
-    paddingLeft: node.paddingLeft || 0,
-    paddingRight: node.paddingRight || 0,
-    paddingTop: node.paddingTop || 0,
-    paddingBottom: node.paddingBottom || 0,
-    itemSpacing: node.itemSpacing || 0
-  };
-
-  // If the node has children, process them in reverse order
-  // to match Figma's visual hierarchy
-  if (node.children && Array.isArray(node.children)) {
-    normalizedNode.children = [...node.children]
-      .reverse() // Reverse the order to match Figma's visual hierarchy
-      .map(child => {
-        const normalizedChild = normalizeNode(child);
-        if (normalizedChild) {
-          // Add parent reference for easier traversal
-          normalizedChild.parent = normalizedNode;
-        }
-        return normalizedChild;
-      })
-      .filter(Boolean); // Remove any null nodes
-  }
-
-  return normalizedNode;
-};
+import React, { useState } from 'react';
 
 const FigmaTreeViewer = ({ document, onSelect }) => {
-  // const [searchTerm, setSearchTerm] = useState('');
-  // const [expandedNodes, setExpandedNodes] = useState(new Set());
+  const [expandedNodes, setExpandedNodes] = useState(new Set());
+  
+  const toggleExpand = (nodeId, e) => {
+    e.stopPropagation();
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(nodeId)) {
+      newExpanded.delete(nodeId);
+    } else {
+      newExpanded.add(nodeId);
+    }
+    setExpandedNodes(newExpanded);
+  };
 
-  // Search functionality temporarily disabled
-  // const debouncedSearch = useDebounce((term) => {
-  //   // Filter nodes based on search term
-  //   const filteredNodes = filterNodes(document, term);
-  //   // Update the tree view with filtered nodes
-  //   updateTreeView(filteredNodes);
-  // }, 300);
+  const renderNode = (node, depth = 0) => {
+    if (!node) return null;
 
-  // const handleSearch = useCallback((event) => {
-  //   const term = event.target.value;
-  //   setSearchTerm(term);
-  //   debouncedSearch(term);
-  // }, [debouncedSearch]);
+    const hasChildren = node.children && node.children.length > 0;
+    const isExpanded = expandedNodes.has(node.id);
+    
+    return (
+      <div key={node.id}>
+        <div 
+          className="flex items-center gap-1 px-2 py-1 hover:bg-slate-100 rounded cursor-pointer text-sm"
+          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+        >
+          {/* Expand/collapse button */}
+          {hasChildren ? (
+            <button
+              onClick={(e) => toggleExpand(node.id, e)}
+              className="w-4 h-4 flex items-center justify-center text-xs hover:bg-slate-200 rounded"
+            >
+              {isExpanded ? '▼' : '▶'}
+            </button>
+          ) : (
+            <span className="w-4" />
+          )}
+          
+          {/* Node content - clickable to select */}
+          <div 
+            onClick={() => onSelect(node)}
+            className="flex items-center gap-1 flex-1"
+          >
+            {/* Icon */}
+            <span className="text-xs">
+              {node.type === 'CANVAS' && '📄'}
+              {node.type === 'FRAME' && '🖼️'}
+              {node.type === 'GROUP' && '📁'}
+              {node.type === 'COMPONENT' && '🧩'}
+              {node.type === 'RECTANGLE' && '▭'}
+              {node.type === 'TEXT' && '📝'}
+              {node.type === 'INSTANCE' && '⚡'}
+            </span>
+            
+            {/* Name */}
+            <span className="truncate">{node.name}</span>
+            
+            {/* Child count */}
+            {hasChildren && (
+              <span className="text-xs text-slate-400">({node.children.length})</span>
+            )}
+          </div>
+        </div>
+        
+        {/* Render children if expanded */}
+        {hasChildren && isExpanded && (
+          <div>
+            {node.children.map(child => renderNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (!document) {
     return (
@@ -96,38 +93,20 @@ const FigmaTreeViewer = ({ document, onSelect }) => {
     );
   }
 
-  // Normalize the document structure
-  const normalizedDocument = normalizeNode(document);
-
-  const renderNodes = (node) => {
-    if (!node || !node.children) return null;
-
-    return (
-      <ul className="ml-4 list-disc text-sm">
-        {node.children.map((child) => (
-          <li key={child.id} className="py-1">
-            <button
-              className={`text-blue-700 hover:underline focus:outline-none ${
-                child.isGroup ? 'font-bold' : ''
-              } ${child.isFrame ? 'text-purple-700' : ''}`}
-              onClick={() => onSelect(child)}
-            >
-              {child.name} ({child.type})
-              {child.isGroup && ' [Group]'}
-              {child.isFrame && ' [Frame]'}
-            </button>
-            {renderNodes(child)}
-          </li>
-        ))}
-      </ul>
-    );
-  };
-
+  // Figma files have pages as document.children (CANVAS nodes)
   return (
     <div className="mt-6 p-4 bg-white rounded shadow w-full max-w-2xl overflow-auto max-h-[500px]">
       <h2 className="text-xl font-semibold mb-2">📁 Figma File Tree</h2>
-      
-      {renderNodes(normalizedDocument)}
+      <div className="text-sm overflow-y-auto max-h-96">
+        <div className="text-xs font-semibold text-slate-500 uppercase mb-2 px-2">
+          Layers
+        </div>
+        {document.children && document.children.length > 0 ? (
+          document.children.map(page => renderNode(page, 0))
+        ) : (
+          renderNode(document, 0)
+        )}
+      </div>
     </div>
   );
 };

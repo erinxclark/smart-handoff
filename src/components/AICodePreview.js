@@ -150,6 +150,10 @@ const AICodePreview = forwardRef(({
   const prepareCodeForReactLive = (rawCode) => {
     if (!rawCode || rawCode.trim() === '') return '';
 
+    console.log('🧹 Starting code preparation...');
+    console.log('🧹 Raw code length:', rawCode.length);
+    console.log('🧹 Raw code (first 300 chars):', rawCode.substring(0, 300));
+
     let cleaned = rawCode.trim();
 
     // Remove markdown code blocks if present
@@ -189,12 +193,14 @@ const AICodePreview = forwardRef(({
     const jsxMatch = cleaned.match(/return\s*\(\s*([\s\S]*?)\s*\)\s*;?\s*}/);
     if (jsxMatch) {
       const jsxContent = jsxMatch[1].trim();
-      console.log('Extracted JSX for React Live:', jsxContent);
+      console.log('✅ Extracted JSX for React Live (first 200 chars):', jsxContent.substring(0, 200));
+      console.log('✅ Full extracted JSX:', jsxContent);
       return jsxContent;
     }
     
     // Fallback: if no return statement found, return the cleaned code
-    console.log('No return statement found, using cleaned code:', cleaned);
+    console.log('⚠️ No return statement found, using cleaned code (first 200 chars):', cleaned.substring(0, 200));
+    console.log('⚠️ Full cleaned code:', cleaned);
     return cleaned.trim();
   };
 
@@ -220,7 +226,8 @@ const AICodePreview = forwardRef(({
 
     try {
       const preparedCode = prepareCodeForReactLive(code);
-      console.log('📝 Prepared code:', preparedCode?.substring(0, 100));
+      console.log('📝 Prepared code (first 200 chars):', preparedCode?.substring(0, 200));
+      console.log('📝 Full prepared code:', preparedCode);
       
       if (preparedCode && preparedCode.trim() !== '') {
         // Store original prepared code
@@ -460,19 +467,24 @@ const AICodePreview = forwardRef(({
                 <div className="text-sm font-mono bg-red-100 p-3 rounded-lg">{error}</div>
               </motion.div>
             ) : originalCode ? (
-              <LiveProvider
-                code={originalCode}
-                noInline={false}
-                scope={{ React }}
-              >
-                <div className="relative">
-                  <LiveError 
-                    className="absolute top-0 left-0 right-0 bg-red-100 text-red-700 p-4 text-sm rounded-xl z-10 border border-red-300"
-                    onError={(error) => {
-                      console.error('React Live error:', error);
-                      setError(`React Live error: ${error.message}`);
-                    }}
-                  />
+        <LiveProvider
+          code={originalCode}
+          noInline={false}
+          scope={{ React }}
+        >
+          <div className="relative">
+            <LiveError 
+              className="absolute top-0 left-0 right-0 bg-red-100 text-red-700 p-4 text-sm rounded-xl z-10 border border-red-300"
+              onError={(error) => {
+                console.error('🚨 React Live syntax error:', error);
+                console.error('🚨 Error details:', {
+                  message: error.message,
+                  stack: error.stack,
+                  code: originalCode
+                });
+                setError(`Syntax Error: ${error.message}`);
+              }}
+            />
                   <div ref={ref} className="w-full">
                     <LivePreview />
                   </div>

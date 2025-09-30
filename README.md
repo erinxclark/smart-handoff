@@ -16,6 +16,10 @@ Smart Handoff revolutionizes the design-to-development workflow with a modern, i
 - **File Size Detection**: Smart warnings for large Figma files with performance recommendations
 - **Error Recovery**: AI-powered code analysis and automatic positioning fixes
 - **Alignment Enforcement**: Simple exact value enforcement for pixel-perfect positioning
+- **Accessibility Enhancement**: Automatic ARIA attributes, semantic HTML, and keyboard navigation
+- **Design Token Extraction**: Intelligent extraction and categorization of design system tokens
+- **Smart Pattern Recognition**: Deep analysis of Figma structures for accurate component generation
+- **Robust Error Handling**: Comprehensive error recovery and user-friendly guidance
 
 ## Key Features
 
@@ -126,21 +130,56 @@ Smart Handoff revolutionizes the design-to-development workflow with a modern, i
 - **Smart Fallbacks**: Falls back to custom components when confidence is low
 - **Library Selection**: Choose between different component libraries or custom implementation
 
+### 12. Accessibility Enhancement
+- **Automatic ARIA Attributes**: Generates proper ARIA labels, roles, and descriptions
+- **Semantic HTML**: Converts generic divs to semantic elements (button, input, nav, article, etc.)
+- **Keyboard Navigation**: Adds tabIndex and onKeyPress handlers for interactive elements
+- **Color Contrast Checking**: Validates WCAG AA/AAA compliance with actionable feedback
+- **Screen Reader Support**: Ensures generated components are accessible to assistive technologies
+- **Focus Management**: Proper focus indicators and keyboard navigation patterns
+
+### 13. Design Token Extraction
+- **Intelligent Token Analysis**: Automatically identifies and categorizes design tokens
+- **Color Extraction**: Background colors, text colors, border colors with usage categorization
+- **Spacing Patterns**: Padding, margins, gaps with consistent spacing scale detection
+- **Typography Analysis**: Font families, sizes, weights, line heights, letter spacing
+- **Border & Effects**: Border widths, corner radius values, box shadows, blur effects
+- **Export Functionality**: CSS variables and JSON export for design systems
+- **Token Organization**: Clean, scannable interface with copy-to-clipboard functionality
+
+### 14. Smart Pattern Recognition
+- **Deep Structure Analysis**: Recursive analysis of nested Figma components
+- **GROUP vs FRAME Handling**: Specialized logic for different Figma container types
+- **Button Pattern Detection**: Automatic recognition of RECTANGLE + TEXT button patterns
+- **Badge Identification**: Small rounded elements with pill-shaped styling
+- **Content Extraction**: Extracts actual text content instead of placeholder text
+- **Hierarchy Preservation**: Maintains complete component structure and relationships
+
+### 15. Enhanced Error Handling
+- **Circular Reference Protection**: Safe JSON serialization for complex Figma data
+- **Syntax Error Recovery**: Automatic JSX syntax correction and validation
+- **Positioning Fixes**: Intelligent correction of element positioning issues
+- **User-Friendly Messages**: Clear, actionable error messages with guidance
+- **Graceful Degradation**: Fallback mechanisms for edge cases and failures
+
 ## Technical Details
 
 ### Component Structure
 - **`AICodePreview`**: Core React Live integration for real-time JSX rendering with Tailwind CSS conversion
 - **`AIGeneratedCodePreview`**: Specialized component for AI output section
 - **`SimpleLivePreview`**: Lightweight wrapper for CodeEditor integration
-- **`FigmaTreeViewer`**: Displays and manages Figma document structure
+- **`FigmaTreeViewer`**: Displays and manages Figma document structure with expand/collapse functionality
 - **`LiveCodePreview`**: Orchestrates React component preview and comparison
 - **`CodeEditor`**: Provides code editing capabilities with AI integration
+- **`DesignTokensPanel`**: Extracts and displays design tokens with export functionality
 - **`ComponentStructureAnalyzer`**: AI service for code analysis and fixing
 - **`styleConverter`**: Utility for converting React inline styles to Tailwind CSS classes
 - **`componentDetector`**: Intelligent component pattern recognition and classification
 - **`imageHandler`**: Graceful handling of missing Figma images with SVG placeholders
 - **`componentMapper`**: Maps detected components to actual component library implementations
 - **`exactValueEnforcer`**: Simple post-processing utility for enforcing exact Figma pixel values
+- **`accessibilityEnhancer`**: Automatic accessibility enhancement with ARIA attributes and semantic HTML
+- **`tokenExtractor`**: Intelligent design token extraction and categorization system
 
 ### Key Technologies
 - **React 18** for modern UI components and hooks

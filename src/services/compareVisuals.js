@@ -2,6 +2,19 @@ import axios from 'axios';
 
 const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
+// Cache comparison results to avoid re-analyzing same images
+const comparisonCache = new Map();
+
+// Clear cache function for testing
+export const clearComparisonCache = () => {
+  comparisonCache.clear();
+};
+
+function getCacheKey(reactImage, figmaImage) {
+  // Create hash from image data URLs
+  return `${reactImage.substring(0, 50)}_${figmaImage.substring(0, 50)}`;
+}
+
 export const compareVisuals = async (livePreviewUrl, figmaPreviewUrl) => {
   try {
     if (!figmaPreviewUrl) {
@@ -21,6 +34,13 @@ export const compareVisuals = async (livePreviewUrl, figmaPreviewUrl) => {
 
     console.log('Attempting to analyze component with OpenAI API...');
     
+    // Check cache first
+    const cacheKey = getCacheKey(livePreviewUrl, figmaPreviewUrl);
+    if (comparisonCache.has(cacheKey)) {
+      console.log('Returning cached comparison results');
+      return comparisonCache.get(cacheKey);
+    }
+    
     try {
       // Get image data for both previews
       const figmaImageData = figmaPreviewUrl;
@@ -37,22 +57,65 @@ export const compareVisuals = async (livePreviewUrl, figmaPreviewUrl) => {
               content: [
                 {
                   type: 'text',
-                  text: `Compare these two images - the first is the Figma design, and the second is the React implementation. Analyze the visual differences between them and provide specific, detailed feedback on:
-- Exact color differences (provide specific hex codes where possible)
-- Size and dimension mismatches (in pixels where possible)
-- Border style differences (width, color, radius)
-- Typography discrepancies (font size, weight, family, line height)
-- Spacing and layout variations (padding, margin, alignment)
-- ALIGNMENT ISSUES: Check if elements that should be aligned (top, left, center, etc.) are properly aligned
-- ALIGNMENT DRIFT: Identify elements that are misaligned by more than 2-3 pixels from their expected positions
-- Any other visual inconsistencies
+                  text: `You are a visual QA expert analyzing UI implementation accuracy.
 
-Format your response as a JSON array of objects, each with:
-- "priority": either "high", "medium", or "low" based on importance
-- "title": a specific title that clearly identifies the element and issue
-- "description": detailed explanation with specific measurements, colors, or other metrics
+Compare these two screenshots:
+1. React Implementation (generated code)
+2. Original Figma Design
 
-Be as specific and precise as possible about exact differences between the two images.`
+Provide a detailed, structured analysis in the following format:
+
+## DIMENSIONS
+- React: [width] x [height]
+- Figma: [width] x [height]
+- Difference: [exact pixel difference]
+- Status: ✓ Match / ⚠ Off by Xpx
+
+## COLORS
+Analyze each visible color:
+- Background: React [hex] vs Figma [hex] - [Match/Different]
+- Text: React [hex] vs Figma [hex] - [Match/Different]
+- Borders: React [hex] vs Figma [hex] - [Match/Different]
+If different, calculate color distance and suggest correction.
+
+## SPACING & ALIGNMENT
+- Padding: React [measurements] vs Figma [measurements]
+- Element gaps: [measure distances between elements]
+- Alignment issues: [specific elements that are misaligned]
+- Status for each: ✓ Match / ⚠ Off by Xpx
+
+## TYPOGRAPHY
+- Font family: [comparison]
+- Font size: React [size] vs Figma [size]
+- Font weight: [comparison]
+- Line height: [comparison]
+
+## BORDER & EFFECTS
+- Border width: [comparison]
+- Border radius: React [value] vs Figma [value]
+- Box shadow: [detailed comparison]
+
+## CRITICAL ISSUES (prioritized)
+List any issues that would fail QA:
+1. [Issue] - Impact: High/Medium/Low
+2. [Issue] - Impact: High/Medium/Low
+
+## ACCURACY SCORE
+Overall: [0-100]%
+- Dimensions: [0-100]%
+- Colors: [0-100]%
+- Spacing: [0-100]%
+- Typography: [0-100]%
+
+## ACTIONABLE FIXES
+Provide specific code changes needed:
+1. Change backgroundColor from '#44b24f' to '#43b261'
+2. Adjust padding from 16px to 20px
+3. Fix border-radius from 12px to 15px
+
+Be precise with measurements. Use actual pixel values, not approximations.
+If something matches perfectly, clearly state "✓ Perfect match".
+If there are no differences, say "✓ Pixel-perfect implementation".`
                 },
                 {
                   type: 'image_url',
@@ -86,20 +149,16 @@ Be as specific and precise as possible about exact differences between the two i
       console.log('Response text sample:', responseText.substring(0, 200) + '...');
       
       try {
-        // Try to find and parse JSON in the response
-        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const parsedData = JSON.parse(jsonMatch[0]);
-          if (Array.isArray(parsedData) && parsedData.length > 0) {
-            return enhanceAnalysis(parsedData);
-          }
-        }
+        // Parse the structured response
+        const parsedResults = parseComparisonResults(responseText);
         
-        // If no valid JSON, use a text-based approach
-        return parseTextResponse(responseText);
+        // Cache the results
+        comparisonCache.set(cacheKey, parsedResults);
+        
+        return parsedResults;
         
       } catch (parseError) {
-        console.warn('Failed to parse JSON response:', parseError);
+        console.warn('Failed to parse structured response:', parseError);
         return parseTextResponse(responseText);
       }
     } catch (apiError) {
@@ -182,33 +241,108 @@ function parseTextResponse(text) {
   return issues;
 }
 
+// Parse the structured AI response into organized data
+function parseComparisonResults(aiResponse) {
+  return {
+    dimensions: extractSection(aiResponse, 'DIMENSIONS'),
+    colors: extractSection(aiResponse, 'COLORS'),
+    spacing: extractSection(aiResponse, 'SPACING & ALIGNMENT'),
+    typography: extractSection(aiResponse, 'TYPOGRAPHY'),
+    borders: extractSection(aiResponse, 'BORDER & EFFECTS'),
+    criticalIssues: extractCriticalIssues(aiResponse),
+    accuracyScore: extractAccuracyScore(aiResponse),
+    actionableFixes: extractActionableFixes(aiResponse),
+    rawResponse: aiResponse
+  };
+}
+
+function extractSection(response, sectionName) {
+  const regex = new RegExp(`## ${sectionName}\\n([\\s\\S]*?)(?=\\n## |$)`, 'i');
+  const match = response.match(regex);
+  return match ? match[1].trim() : 'Not analyzed';
+}
+
+function extractCriticalIssues(response) {
+  const section = extractSection(response, 'CRITICAL ISSUES');
+  const issues = [];
+  const lines = section.split('\n');
+  
+  lines.forEach(line => {
+    const match = line.match(/\d+\.\s*(.+?)\s*-\s*Impact:\s*(High|Medium|Low)/i);
+    if (match) {
+      issues.push({
+        description: match[1].trim(),
+        impact: match[2].toLowerCase()
+      });
+    }
+  });
+  
+  return issues;
+}
+
+function extractAccuracyScore(response) {
+  const section = extractSection(response, 'ACCURACY SCORE');
+  const scores = {};
+  
+  const overallMatch = section.match(/Overall:\s*(\d+)%/);
+  if (overallMatch) scores.overall = parseInt(overallMatch[1]);
+  
+  const dimensionsMatch = section.match(/Dimensions:\s*(\d+)%/);
+  if (dimensionsMatch) scores.dimensions = parseInt(dimensionsMatch[1]);
+  
+  const colorsMatch = section.match(/Colors:\s*(\d+)%/);
+  if (colorsMatch) scores.colors = parseInt(colorsMatch[1]);
+  
+  const spacingMatch = section.match(/Spacing:\s*(\d+)%/);
+  if (spacingMatch) scores.spacing = parseInt(spacingMatch[1]);
+  
+  const typographyMatch = section.match(/Typography:\s*(\d+)%/);
+  if (typographyMatch) scores.typography = parseInt(typographyMatch[1]);
+  
+  return scores;
+}
+
+function extractActionableFixes(response) {
+  const section = extractSection(response, 'ACTIONABLE FIXES');
+  const fixes = [];
+  const lines = section.split('\n');
+  
+  lines.forEach(line => {
+    const match = line.match(/\d+\.\s*(.+)/);
+    if (match) {
+      fixes.push(match[1].trim());
+    }
+  });
+  
+  return fixes;
+}
+
 // Provides a fallback analysis when API calls fail
 function getFallbackAnalysis() {
-  return [
-    {
-      priority: 'high',
-      title: 'Component Dimensions',
-      description: 'The React component width or height may not match the Figma design. Check the exact pixel values for width, height, and padding in the Figma design.'
+  return {
+    dimensions: 'Unable to analyze dimensions - API unavailable',
+    colors: 'Unable to analyze colors - API unavailable',
+    spacing: 'Unable to analyze spacing - API unavailable',
+    typography: 'Unable to analyze typography - API unavailable',
+    borders: 'Unable to analyze borders - API unavailable',
+    criticalIssues: [
+      {
+        description: 'Visual analysis unavailable - check component manually',
+        impact: 'high'
+      }
+    ],
+    accuracyScore: {
+      overall: 0,
+      dimensions: 0,
+      colors: 0,
+      spacing: 0,
+      typography: 0
     },
-    {
-      priority: 'medium',
-      title: 'Color Hex Code Matching',
-      description: 'Verify that colors in the React implementation use the exact hex codes from the Figma design. Pay special attention to subtle differences in shades or opacity values.'
-    },
-    {
-      priority: 'medium',
-      title: 'Border Style Properties',
-      description: 'Border properties may not match between designs. Check border-width (px), border-style, border-color, and border-radius (px) values in the Figma specs.'
-    },
-    {
-      priority: 'medium',
-      title: 'Typography Specifications',
-      description: 'Font properties like size, weight, family, and line-height should match the Figma design. Use the Inspect tab in Figma to view the exact typography values.'
-    },
-    {
-      priority: 'low',
-      title: 'Spacing Consistency',
-      description: 'Ensure consistent padding and margin values between elements. Compare the exact pixel measurements with the Figma design using the Inspect tool.'
-    }
-  ];
+    actionableFixes: [
+      'Verify component matches Figma design manually',
+      'Check exact pixel values in Figma inspect panel',
+      'Compare colors, spacing, and typography side by side'
+    ],
+    rawResponse: 'Fallback analysis - API unavailable'
+  };
 } 
