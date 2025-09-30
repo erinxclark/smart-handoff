@@ -257,47 +257,29 @@ STEP-BY-STEP EXTRACTION:
 
 For this Figma structure, walk through EVERY child recursively:
 
-node.children.forEach(child => {
-  
-  if (child.type === "TEXT") {
-    // Extract ACTUAL text
-    const textContent = child.characters;  // NOT child.name!
-    const fontSize = child.style?.fontSize;
-    const fontWeight = child.style?.fontWeight;
-    const color = child.fills?.[0]?.color;
-    
-    // Determine semantic element
-    if (fontSize > 20) {
-      return `<h2>${textContent}</h2>`;
-    } else {
-      return `<p>${textContent}</p>`;
-    }
-  }
-  
-  if (child.type === "FRAME" || child.type === "GROUP") {
-    // DON'T render the frame name
-    // Instead, analyze its children recursively
-    
-    // Check if this frame contains a button pattern
-    const hasButtonPattern = child.children?.some(grandchild =>
-      grandchild.type === "GROUP" &&
-      grandchild.children?.some(c => c.type === "RECTANGLE") &&
-      grandchild.children?.some(c => c.type === "TEXT")
-    );
-    
-    if (hasButtonPattern) {
-      // Find the button group
-      const buttonGroup = child.children.find(/* button pattern */);
-      const buttonText = buttonGroup.children.find(c => c.type === "TEXT");
-      const buttonRect = buttonGroup.children.find(c => c.type === "RECTANGLE");
-      
-      return `<button>${buttonText.characters}</button>`;  // NOT buttonGroup.name!
-    }
-    
-    // Otherwise, recurse into children
-    return child.children.map(grandchild => analyzeNode(grandchild));
-  }
-});
+1. For each child in node.children:
+   
+   If child.type === "TEXT":
+   - Extract ACTUAL text from child.characters (NOT child.name!)
+   - Get fontSize from child.style.fontSize
+   - Get fontWeight from child.style.fontWeight
+   - Get color from child.fills[0].color
+   
+   - Determine semantic element:
+     * If fontSize > 20: Generate <h2>child.characters</h2>
+     * Otherwise: Generate <p>child.characters</p>
+   
+   If child.type === "FRAME" or child.type === "GROUP":
+   - DON'T render the frame name
+   - Instead, analyze its children recursively
+   
+   - Check if this frame contains a button pattern:
+     * Look for GROUP with RECTANGLE + TEXT children
+     * If found, extract button from the GROUP
+     * Use TEXT child's characters field for button text
+     * Generate <button>child.characters</button> (NOT group name!)
+   
+   - Otherwise, recurse into children and analyze each grandchild
 
 CONCRETE EXAMPLE:
 
