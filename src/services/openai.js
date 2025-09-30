@@ -280,10 +280,37 @@ SIMPLE COMPONENT GENERATION RULES:
      borderRadius: '[node.cornerRadius]px'
    }}></div>
 
-4. COMPLEX STRUCTURES (FRAMES with many children):
+4. MULTI-ELEMENT LAYOUTS (FRAMES with multiple children):
+
+   If children are all simple types (RECTANGLE, TEXT) - no nested groups/frames:
+   → These are SIBLINGS, render each one
    
-   DO NOT attempt to analyze deeply.
-   Generate a placeholder:
+   For each child:
+   - Calculate relative position: child.x - parent.x, child.y - parent.y
+   - Use position: 'absolute' for each child
+   - Use exact dimensions and colors from each child
+   
+   Generate container with positioned children:
+   <div style={{
+     position: 'relative',
+     width: '[parent.absoluteBoundingBox.width]px',
+     height: '[parent.absoluteBoundingBox.height]px'
+   }}>
+     {children.map(child => (
+       <div style={{
+         position: 'absolute',
+         left: '[child.x - parent.x]px',
+         top: '[child.y - parent.y]px',
+         width: '[child.width]px',
+         height: '[child.height]px',
+         backgroundColor: '[convert child.fills[0].color to hex]'
+       }}></div>
+     ))}
+   </div>
+
+5. TRULY COMPLEX STRUCTURES (nested frames/groups):
+   
+   Only use placeholder for ACTUAL complex nesting (frames within frames, groups within frames):
    <div style={{
      width: '[node.absoluteBoundingBox.width]px',
      height: '[node.absoluteBoundingBox.height]px',
@@ -291,22 +318,23 @@ SIMPLE COMPONENT GENERATION RULES:
      borderRadius: '12px',
      padding: '16px'
    }}>
-     <!-- Complex component - requires manual implementation -->
+     <!-- Complex nested component - requires manual implementation -->
    </div>
 
 DO NOT:
-- Try to recursively analyze nested structures
+- Generate placeholders for simple sibling elements (multiple RECTANGLE/TEXT children)
+- Try to recursively analyze deeply nested structures (3+ levels)
 - Generate cards with fake content
-- Attempt to extract from 3+ levels deep
 - Make up content that doesn't exist
 
 DO:
-- Focus on simple, single-level patterns
+- Render simple sibling elements (multiple RECTANGLE/TEXT in same container)
 - Use EXACT values from Figma data
-- Generate working code for buttons, badges, basic elements
-- Acknowledge complexity limits
+- Calculate relative positioning for sibling elements
+- Generate working code for buttons, badges, basic elements, and simple layouts
+- Only use placeholders for truly complex nested structures
 
-This is intentionally simple. Complex nested components are out of scope.
+Simple multi-element layouts should always render.
 
 SPECIAL HANDLING FOR GROUPS vs FRAMES:
 
@@ -583,15 +611,21 @@ Component Type: ${figmaNode.type}
 Dimensions: ${figmaNode.absoluteBoundingBox?.width} x ${figmaNode.absoluteBoundingBox?.height}
 Children Count: ${figmaNode.children?.length || 0}
 
-${figmaNode.children?.length <= 2 ? `
+${figmaNode.children?.length > 0 ? `
 Children Data:
 ${figmaNode.children.map(c => `
   - Type: ${c.type}
   - Characters: ${c.characters || 'N/A'}
   - Dimensions: ${c.absoluteBoundingBox?.width} x ${c.absoluteBoundingBox?.height}
+  - Position: ${c.absoluteBoundingBox?.x}, ${c.absoluteBoundingBox?.y}
   - Fills: ${JSON.stringify(c.fills?.[0]?.color)}
 `).join('\n')}
-` : 'Too many children - generate placeholder'}
+
+${figmaNode.children?.length > 2 ? `
+NOTE: Multiple children detected. Check if they are simple siblings (RECTANGLE/TEXT) 
+or complex nested structures. Render siblings, use placeholder for complex nesting.
+` : ''}
+` : 'No children'}
 
 Generate simple, working code following the rules above.
 
