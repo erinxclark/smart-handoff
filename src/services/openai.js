@@ -282,13 +282,22 @@ SIMPLE COMPONENT GENERATION RULES:
 
 4. MULTI-ELEMENT LAYOUTS (FRAMES with multiple children):
 
-   If children are all simple types (RECTANGLE, TEXT) - no nested groups/frames:
-   → These are SIBLINGS, render each one
+   When node has multiple RECTANGLE children, render each one with proper positioning.
    
-   For each child:
-   - Calculate relative position: child.x - parent.x, child.y - parent.y
-   - Use position: 'absolute' for each child
-   - Use exact dimensions and colors from each child
+   For each child RECTANGLE:
+   1. Calculate position relative to parent: 
+      - left: child.absoluteBoundingBox.x - parent.absoluteBoundingBox.x
+      - top: child.absoluteBoundingBox.y - parent.absoluteBoundingBox.y
+   
+   2. Extract exact dimensions and colors:
+      - width: child.absoluteBoundingBox.width
+      - height: child.absoluteBoundingBox.height  
+      - backgroundColor: convert child.fills[0].color to hex
+   
+   3. Render each rectangle as a positioned div inside the parent container
+   
+   Parent gets position: 'relative', children get position: 'absolute' with calculated left/top.
+   Generate all children, don't use placeholder comments.
    
    Generate container with positioned children:
    <div style={{
@@ -296,16 +305,23 @@ SIMPLE COMPONENT GENERATION RULES:
      width: '[parent.absoluteBoundingBox.width]px',
      height: '[parent.absoluteBoundingBox.height]px'
    }}>
-     {children.map(child => (
-       <div style={{
-         position: 'absolute',
-         left: '[child.x - parent.x]px',
-         top: '[child.y - parent.y]px',
-         width: '[child.width]px',
-         height: '[child.height]px',
-         backgroundColor: '[convert child.fills[0].color to hex]'
-       }}></div>
-     ))}
+     <div style={{
+       position: 'absolute',
+       left: '[child1.x - parent.x]px',
+       top: '[child1.y - parent.y]px',
+       width: '[child1.width]px',
+       height: '[child1.height]px',
+       backgroundColor: '[convert child1.fills[0].color to hex]'
+     }}></div>
+     <div style={{
+       position: 'absolute',
+       left: '[child2.x - parent.x]px',
+       top: '[child2.y - parent.y]px',
+       width: '[child2.width]px',
+       height: '[child2.height]px',
+       backgroundColor: '[convert child2.fills[0].color to hex]'
+     }}></div>
+     <!-- Continue for all children -->
    </div>
 
 5. TRULY COMPLEX STRUCTURES (nested frames/groups):
@@ -323,18 +339,20 @@ SIMPLE COMPONENT GENERATION RULES:
 
 DO NOT:
 - Generate placeholders for simple sibling elements (multiple RECTANGLE/TEXT children)
+- Use placeholder comments like "<!-- Continue for all children -->" - generate ALL children
 - Try to recursively analyze deeply nested structures (3+ levels)
 - Generate cards with fake content
 - Make up content that doesn't exist
 
 DO:
-- Render simple sibling elements (multiple RECTANGLE/TEXT in same container)
-- Use EXACT values from Figma data
-- Calculate relative positioning for sibling elements
+- Render ALL simple sibling elements (multiple RECTANGLE/TEXT in same container)
+- Calculate relative positioning: child.x - parent.x, child.y - parent.y
+- Use EXACT values from Figma data (dimensions, colors, positions)
 - Generate working code for buttons, badges, basic elements, and simple layouts
+- Generate each child RECTANGLE as a separate positioned div
 - Only use placeholders for truly complex nested structures
 
-Simple multi-element layouts should always render.
+Simple multi-element layouts should always render ALL children.
 
 SPECIAL HANDLING FOR GROUPS vs FRAMES:
 
