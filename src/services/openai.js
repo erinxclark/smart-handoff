@@ -18,32 +18,30 @@ if (!OPENAI_API_KEY) {
 function getComponentSpecificRules(componentType) {
   const rules = {
     button: `
-- Use semantic <button> element or <div> with role="button"
-- Include onClick handler placeholder: onClick={() => {}}
+- Use semantic <button> element
+- DO NOT include any event handlers (onClick, onSubmit, etc.)
 - Add proper ARIA attributes: aria-label if no visible text
-- Include hover and focus states in comments
 - Use cursor: 'pointer' style
 - Component name should end with 'Button' (e.g., SubmitButton, PrimaryButton)
-- Include disabled state consideration in comments`,
+- This is a preview component - no interactivity needed`,
 
     input: `
 - Use semantic <input> element
 - Include type attribute based on context (text, email, password, etc.)
 - Add placeholder attribute if placeholder text exists
 - Include proper ARIA attributes: aria-label, aria-describedby
-- Add onChange handler placeholder: onChange={(e) => {}}
-- Include validation states in comments (error, success)
+- DO NOT include any event handlers (onChange, onFocus, onBlur, etc.)
 - Component name should end with 'Input' (e.g., EmailInput, PasswordInput)
-- Add focus and blur handlers in comments`,
+- This is a preview component - no interactivity needed`,
 
     card: `
 - Use semantic structure with proper heading hierarchy
 - Include <div> or <article> element for card container
 - Add proper ARIA attributes: role="article" or role="group"
-- Consider clickable card with role="button" if interactive
+- DO NOT include any event handlers or interactive behaviors
 - Include card header, body, and footer sections if applicable
 - Component name should end with 'Card' (e.g., UserCard, ProductCard)
-- Add hover and focus states for interactive cards`,
+- This is a preview component - no interactivity needed`,
 
     badge: `
 - Use semantic <span> or <div> element
@@ -204,7 +202,7 @@ COMPONENT ANALYSIS:
    - Is responsive where needed
    - Has no framework dependencies
    - Follows component-specific best practices based on detected type
-   - Includes keyboard accessibility (tabIndex, onKeyPress)
+   - Includes keyboard accessibility (tabIndex only - no event handlers)
    - Has proper focus management and visual focus indicators${imageHandling}${libraryInfo}${contrastWarning}
 
 CRITICAL CODE GENERATION RULE:
@@ -320,8 +318,12 @@ ACCESSIBILITY REQUIREMENTS:
 - Add proper ARIA attributes based on component type
 - Include aria-label for icon-only or unclear components
 - Use proper heading hierarchy if text is a heading
-- Ensure keyboard accessibility (tabIndex, onKeyPress)
-- Add focus styles for interactive elements
+
+CRITICAL: NO EVENT HANDLERS
+- DO NOT include any event handlers (onClick, onChange, onSubmit, onKeyPress, etc.)
+- This is a preview component for React Live - event handlers cause syntax errors
+- Keep aria-label and other accessibility attributes
+- Use cursor: 'pointer' for buttons but no onClick handlers
 - For buttons: use <button> element with type="button"
 - For inputs: include <label> with htmlFor linking to input id
 - For cards: use <article> element with proper heading structure
@@ -452,7 +454,6 @@ const SubmitButton = () => {
         cursor: 'pointer'
         // NO position, NO left, NO top, NO transform
       }}
-      onClick={() => {}}
       aria-label="Submit form"
     >
       Submit
@@ -479,7 +480,6 @@ const EmailInput = () => {
         padding: '0 12px'
         // NO position, NO left, NO top, NO transform
       }}
-      onChange={(e) => {}}
       aria-label="Email address"
     />
   );
