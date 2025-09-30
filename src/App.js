@@ -4,12 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import FigmaTreeViewer from './components/FigmaTreeViewer';
 import LiveCodePreview from './components/LiveCodePreview';
-import AIGeneratedCodePreview from './components/AIGeneratedCodePreview';
 import { fetchNodeById } from './figmaApi';
 import { generateSpecAndCode } from './services/openai';
 import { fetchNodeThumbnail } from './services/fetchNodeThumbnail';
-import CodeEditor from './components/CodeEditor';
 import PerformanceMonitor from './components/PerformanceMonitor';
+import AIGeneratedCodePreview from './components/AIGeneratedCodePreview';
+import { enforceExactValues, validateExactValues, debugAlignmentValues } from './utils/exactValueEnforcer';
 
 function App() {
   const [fileUrl, setFileUrl] = useState('');
@@ -135,30 +135,38 @@ function App() {
       // Generate the actual code (detection happens inside generateSpecAndCode)
       return await generateSpecAndCode(nodeData, selectedLibrary);
     },
-    onSuccess: (output) => {
+    onSuccess: (result) => {
+      const output = result.output || result; // Handle both new and old formats
       setAiOutput(output);
       
-      // Extract detection results from AI output
-      try {
-        const detectionMatch = output.match(/COMPONENT ANALYSIS:\s*- Detected Component Type: ([^\n]+)\s*- Confidence: (\d+)%\s*- Reasoning: ([^\n]+)/);
-        if (detectionMatch) {
-          setComponentDetection({
-            componentType: detectionMatch[1].toLowerCase().trim(),
-            confidence: parseInt(detectionMatch[2]),
-            reasoning: detectionMatch[3].trim()
-          });
+      // Set component detection from the result
+      if (result.componentDetection) {
+        setComponentDetection(result.componentDetection);
+      } else {
+        // Fallback: Extract detection results from AI output
+        try {
+          const detectionMatch = output.match(/COMPONENT ANALYSIS:\s*- Detected Component Type: ([^\n]+)\s*- Confidence: (\d+)%\s*- Reasoning: ([^\n]+)/);
+          if (detectionMatch) {
+            setComponentDetection({
+              componentType: detectionMatch[1].toLowerCase().trim(),
+              confidence: parseInt(detectionMatch[2]),
+              reasoning: detectionMatch[3].trim()
+            });
+          }
+          
+          const libraryMatch = output.match(/Using ([^\s]+) component library/);
+          if (libraryMatch) {
+            setLibraryMapping({
+              usesLibrary: true,
+              library: libraryMatch[1]
+            });
+          }
+        } catch (error) {
+          console.log('Could not parse detection results from AI output');
         }
-        
-        const libraryMatch = output.match(/Using ([^\s]+) component library/);
-        if (libraryMatch) {
-          setLibraryMapping({
-            usesLibrary: true,
-            library: libraryMatch[1]
-          });
-        }
-      } catch (error) {
-        console.log('Could not parse detection results from AI output');
       }
+      
+      // Note: Using simple exact value enforcement instead of complex alignment analysis
       
       // Extract the code from the output
       const codeMatch = output.match(/```jsx\n([\s\S]*?)```/);
@@ -167,6 +175,39 @@ function App() {
         
         // Fix common positioning issues
         extractedCode = fixPositioningIssues(extractedCode);
+        
+        // Enforce exact values from Figma JSON
+        if (result.figmaNode) {
+          try {
+            console.log('🎯 ALIGNMENT: Starting exact value enforcement...');
+            
+            // Debug the values before correction
+            debugAlignmentValues(extractedCode, result.figmaNode);
+            
+            // Apply exact value corrections
+            const correctedCode = enforceExactValues(extractedCode, result.figmaNode);
+            if (correctedCode !== extractedCode) {
+              console.log('🔧 ALIGNMENT: Applied exact value corrections');
+              console.log('🔧 ALIGNMENT: Before:', extractedCode.substring(0, 200) + '...');
+              console.log('🔧 ALIGNMENT: After:', correctedCode.substring(0, 200) + '...');
+              extractedCode = correctedCode;
+            } else {
+              console.log('🔧 ALIGNMENT: No corrections needed - values already exact');
+            }
+            
+            // Validate exact values
+            const validation = validateExactValues(extractedCode, result.figmaNode);
+            if (!validation.isValid) {
+              console.log('❌ ALIGNMENT: Value mismatches detected:', validation.issues);
+            } else {
+              console.log('✅ ALIGNMENT: All values match Figma exactly');
+            }
+          } catch (error) {
+            console.error('❌ ALIGNMENT: Error enforcing exact values:', error);
+          }
+        } else {
+          console.log('⚠️ ALIGNMENT: No Figma node data available for alignment enforcement');
+        }
         
         console.log('Extracted code from AI output:', extractedCode);
         console.log('Full AI output for debugging:', output);
@@ -623,8 +664,8 @@ function App() {
               </motion.div>
             )}
 
-            {/* Generated Code - Secondary */}
-            {aiOutput && (
+            {/* Generated Code - With Tailwind Toggle & Storybook */}
+            {aiOutput && extractedCode && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -634,6 +675,8 @@ function App() {
                 <AIGeneratedCodePreview 
                   code={extractedCode} 
                   componentName={selectedNodeName || 'Component'}
+                  detectionInfo={componentDetection}
+                  showPreview={false}
                 />
               </motion.div>
             )}

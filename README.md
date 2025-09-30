@@ -11,9 +11,11 @@ Smart Handoff revolutionizes the design-to-development workflow with a modern, i
 - **Vertical Layout**: Optimized three-row layout prioritizing live preview space
 - **Intelligent Component Detection**: Automatic UI pattern recognition with library mapping
 - **Tailwind CSS Support**: Real-time toggle between inline styles and Tailwind classes
+- **Storybook Integration**: Export generated components as Storybook stories with component variants
 - **Visual Comparison**: Built-in comparison tool with pixel-perfect analysis
 - **File Size Detection**: Smart warnings for large Figma files with performance recommendations
 - **Error Recovery**: AI-powered code analysis and automatic positioning fixes
+- **Alignment Enforcement**: Simple exact value enforcement for pixel-perfect positioning
 
 ## Key Features
 
@@ -47,7 +49,20 @@ Smart Handoff revolutionizes the design-to-development workflow with a modern, i
 - **Positioning Fixes**: Automatic correction of off-screen rendering issues
 - **Robust Error Handling**: AI-powered code analysis and fixing
 
-### 4. AI-Powered Live Preview
+### 4. Storybook Integration
+- **Export to Storybook**: Generate `.stories.js` files for design system documentation
+- **Component Variants**: Automatic story generation based on detected component types
+  - **Buttons**: Default, Primary, Secondary, Disabled, Large, Small variants
+  - **Cards**: Default, With Content, Empty states
+  - **Inputs**: Default, With Value, Error, Disabled states
+  - **Badges**: Default, Primary, Secondary, Destructive, Outline variants
+  - **Avatars**: Default, With Image, With Fallback, Large, Small variants
+- **CSF 3.0 Format**: Modern Storybook story format with auto-generated documentation
+- **Preview Modal**: Review story file content before downloading
+- **Smart Filename Generation**: Automatic naming based on component detection
+- **Design System Ready**: Perfect for documenting component libraries and design systems
+
+### 5. AI-Powered Live Preview
 - **React Live Integration**: Real-time JSX rendering with instant updates
 - **Smart Code Cleaning**: Automatic removal of comments, imports, and formatting issues
 - **Error Handling**: Graceful fallbacks and AI-powered code fixing
@@ -77,26 +92,34 @@ Smart Handoff revolutionizes the design-to-development workflow with a modern, i
 - **Z-Index Management**: Preserves layer stacking order from Figma
 - **Responsive Layout**: Handles multi-element components with proper positioning
 
-### 7. AI-Powered Code Analysis
+### 7. Alignment Enforcement System
+- **Exact Value Enforcement**: Simple post-processing to ensure generated code uses exact Figma pixel values
+- **No Rounding**: Prevents AI from rounding or approximating positioning values
+- **Coordinate Matching**: Ensures elements with same X/Y coordinates in Figma have matching CSS values
+- **Debug Logging**: Enhanced console logging to track alignment corrections and validations
+- **Value Validation**: Post-generation validation to verify exact value matching
+- **Figma JSON Integration**: Direct enforcement using `absoluteBoundingBox` values from Figma data
+
+### 8. AI-Powered Code Analysis
 - **Component Structure Analysis**: AI identifies and fixes structural issues
 - **Code Validation**: Automatic syntax checking and error detection
 - **Smart Fallbacks**: Graceful degradation when code generation fails
 - **Continuous Improvement**: AI learns from patterns and improves over time
 
-### 8. Intelligent Component Detection
+### 9. Intelligent Component Detection
 - **Pattern Recognition**: Automatically detects UI component types (button, input, card, badge, avatar, container)
 - **Confidence Scoring**: Provides 0-100% confidence scores with detailed reasoning
 - **Library Suggestions**: Recommends appropriate UI libraries (shadcn/ui, MUI, Chakra, custom)
 - **Component-Specific Generation**: Tailored code generation based on detected component type
 - **Semantic HTML**: Generates proper semantic elements and ARIA attributes
 
-### 9. Smart Image Handling
+### 10. Smart Image Handling
 - **Graceful Fallbacks**: Handles missing Figma images with beautiful SVG placeholders
 - **Placeholder Types**: Avatar, photo, icon, and generic placeholders with appropriate designs
 - **Developer Guidance**: Includes helpful comments and data attributes for manual replacement
 - **Figma Reference Preservation**: Maintains original Figma image references for easy updates
 
-### 10. Component Library Integration
+### 11. Component Library Integration
 - **Real Component Libraries**: Generates actual shadcn/ui, Material-UI, and Chakra UI components
 - **Intelligent Mapping**: Converts detected components to proper library implementations
 - **Import Management**: Automatically generates required import statements
@@ -117,6 +140,7 @@ Smart Handoff revolutionizes the design-to-development workflow with a modern, i
 - **`componentDetector`**: Intelligent component pattern recognition and classification
 - **`imageHandler`**: Graceful handling of missing Figma images with SVG placeholders
 - **`componentMapper`**: Maps detected components to actual component library implementations
+- **`exactValueEnforcer`**: Simple post-processing utility for enforcing exact Figma pixel values
 
 ### Key Technologies
 - **React 18** for modern UI components and hooks

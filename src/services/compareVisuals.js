@@ -43,6 +43,8 @@ export const compareVisuals = async (livePreviewUrl, figmaPreviewUrl) => {
 - Border style differences (width, color, radius)
 - Typography discrepancies (font size, weight, family, line height)
 - Spacing and layout variations (padding, margin, alignment)
+- ALIGNMENT ISSUES: Check if elements that should be aligned (top, left, center, etc.) are properly aligned
+- ALIGNMENT DRIFT: Identify elements that are misaligned by more than 2-3 pixels from their expected positions
 - Any other visual inconsistencies
 
 Format your response as a JSON array of objects, each with:

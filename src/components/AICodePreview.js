@@ -2,6 +2,7 @@ import React, { useState, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LiveProvider, LiveError, LivePreview } from 'react-live';
 import { inlineStylesToTailwind } from '../utils/styleConverter';
+import { generateStorybookStory, generateStoryFilename } from '../utils/storybookGenerator';
 
 /**
  * AICodePreview Component
@@ -14,7 +15,8 @@ const AICodePreview = forwardRef(({
   componentName = 'Component',
   showCode = true,
   showPreview = true,
-  className = ''
+  className = '',
+  detectionInfo = null
 }, ref) => {
   const [processedCode, setProcessedCode] = useState('');
   const [error, setError] = useState(null);
@@ -24,6 +26,9 @@ const AICodePreview = forwardRef(({
   const [originalCode, setOriginalCode] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [storybookSuccess, setStorybookSuccess] = useState(false);
+  const [showStoryPreview, setShowStoryPreview] = useState(false);
+  const [storyContent, setStoryContent] = useState('');
 
   // Copy to clipboard function
   const copyToClipboard = async () => {
@@ -53,6 +58,47 @@ const AICodePreview = forwardRef(({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Download as Storybook story function
+  const downloadAsStorybook = () => {
+    try {
+      // Generate the story file content
+      const generatedStory = generateStorybookStory(code, componentName, detectionInfo);
+      setStoryContent(generatedStory);
+      setShowStoryPreview(true);
+    } catch (err) {
+      console.error('Failed to generate storybook story: ', err);
+    }
+  };
+
+  // Actually download the story file
+  const downloadStoryFile = () => {
+    try {
+      const filename = generateStoryFilename(componentName);
+      
+      // Create and download the file
+      const blob = new Blob([storyContent], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Close modal and show success toast
+      setShowStoryPreview(false);
+      setStorybookSuccess(true);
+      setShowToast(true);
+      setTimeout(() => {
+        setStorybookSuccess(false);
+        setShowToast(false);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to download storybook story: ', err);
+    }
   };
 
   // Function to convert inline styles to Tailwind classes in JSX
@@ -262,7 +308,9 @@ const AICodePreview = forwardRef(({
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <span className="font-medium">Code copied to clipboard!</span>
+              <span className="font-medium">
+                {storybookSuccess ? 'Storybook story downloaded!' : 'Code copied to clipboard!'}
+              </span>
             </div>
           </motion.div>
         )}
@@ -349,6 +397,25 @@ const AICodePreview = forwardRef(({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </motion.button>
+
+                  {/* Export to Storybook button */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={downloadAsStorybook}
+                    className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all duration-200"
+                    title="Export to Storybook"
+                  >
+                    {storybookSuccess ? (
+                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    )}
+                  </motion.button>
                 </div>
               </div>
             </div>
@@ -431,6 +498,82 @@ const AICodePreview = forwardRef(({
           </div>
         </div>
       )}
+
+      {/* Storybook Preview Modal */}
+      <AnimatePresence>
+        {showStoryPreview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowStoryPreview(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800">Storybook Story Preview</h3>
+                    <p className="text-sm text-slate-600">Review your story file before downloading</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowStoryPreview(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-auto max-h-[60vh]">
+                <div className="bg-slate-900 rounded-lg p-4 overflow-auto">
+                  <pre className="text-sm text-slate-100 font-mono whitespace-pre-wrap">
+                    {storyContent}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+                <p className="text-sm text-slate-600">
+                  This story file will be downloaded as <code className="bg-slate-200 px-1 rounded">{generateStoryFilename(componentName)}</code>
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowStoryPreview(false)}
+                    className="px-4 py-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={downloadStoryFile}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                  >
+                    Download Story
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });

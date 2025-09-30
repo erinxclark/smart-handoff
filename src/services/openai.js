@@ -89,6 +89,8 @@ export const generateSpecAndCode = async (figmaNode, selectedLibrary = 'none') =
   const componentDetection = detectComponentPattern(figmaNode);
   console.log('Component Detection Result:', componentDetection);
 
+  // Note: Using simple exact value enforcement instead of complex alignment analysis
+
   // Auto-detect if we should use library components
   const shouldAutoUseLibrary = componentDetection.confidence >= 70 && 
                                componentDetection.componentType !== 'unknown' && 
@@ -132,6 +134,8 @@ export const generateSpecAndCode = async (figmaNode, selectedLibrary = 'none') =
 - ${autoDetected ? 'Automatically chose library based on high confidence detection' : 'Using user-selected library'}`;
   }
 
+  // Note: Removed complex alignment hints in favor of simple exact value enforcement
+
   const prompt = `You are a React expert. Given the following Figma design specifications, create:
 
 COMPONENT ANALYSIS:
@@ -168,23 +172,37 @@ CRITICAL - MUST FOLLOW THESE RULES:
 - The root element must start at (0,0) in the preview window - ignore Figma canvas coordinates
 - Only child elements should use position: 'absolute' with calculated relative positions
 
-1. Use HARDCODED LITERAL VALUES for all dimensions - DO NOT use variables or template literals like \`\${width}px\`
-2. Extract the exact pixel values from the Figma JSON and hardcode them directly in your styles
-3. Example: width: '200px', NOT width: \`\${width}px\` or width: width + 'px'
-4. If absoluteBoundingBox.width is 320, use width: '320px' directly in your styles
-5. All dimensions must be explicitly defined with numeric values - no variables, no calculations
-6. Use the exact colors from fills[] array in the Figma data (in hex format)
-7. Include all necessary dimensions: width, height, padding, etc.
-8. Make sure every element has explicit width and height values
-9. ONLY CREATE TEXT ELEMENTS IF THEY EXIST IN THE FIGMA DATA - don't add placeholder text elements
-10. Look for "strokeWeight" or "strokes" in the Figma JSON and include border styles if they exist
-11. DO NOT INVENT OR HALLUCINATE ELEMENTS - only create elements that are explicitly in the Figma data
-12. For each element in your React component, comment which Figma node it corresponds to
-13. NO JSDoc comments or @typedef - these break React Live rendering
-14. Use proper JSX syntax - all style objects must be properly formatted
-15. Ensure all JSX attributes are complete and properly closed
-16. NO incomplete template literals or malformed style objects
-17. CRITICAL POSITIONING RULES - ROOT ELEMENT MUST BE VISIBLE:
+🎯 CRITICAL POSITIONING RULES - EXACT VALUES ONLY:
+1. Copy EXACT pixel values from Figma JSON - DO NOT round numbers (use 211px, not 210px)
+2. If two elements have the same Y coordinate in Figma, they MUST have the same top value in CSS
+3. If two elements have the same X coordinate in Figma, they MUST have the same left value in CSS
+4. Use the absoluteBoundingBox values EXACTLY as they appear in the JSON
+
+EXAMPLE FROM FIGMA JSON:
+element1.absoluteBoundingBox.y = 728
+element2.absoluteBoundingBox.y = 728
+↓
+MUST GENERATE:
+<div style={{ top: '728px' }}>
+<div style={{ top: '728px' }}>
+
+5. Use HARDCODED LITERAL VALUES for all dimensions - DO NOT use variables or template literals like \`\${width}px\`
+6. Extract the exact pixel values from the Figma JSON and hardcode them directly in your styles
+7. Example: width: '200px', NOT width: \`\${width}px\` or width: width + 'px'
+8. If absoluteBoundingBox.width is 320, use width: '320px' directly in your styles
+9. All dimensions must be explicitly defined with numeric values - no variables, no calculations
+10. Use the exact colors from fills[] array in the Figma data (in hex format)
+11. Include all necessary dimensions: width, height, padding, etc.
+12. Make sure every element has explicit width and height values
+13. ONLY CREATE TEXT ELEMENTS IF THEY EXIST IN THE FIGMA DATA - don't add placeholder text elements
+14. Look for "strokeWeight" or "strokes" in the Figma JSON and include border styles if they exist
+15. DO NOT INVENT OR HALLUCINATE ELEMENTS - only create elements that are explicitly in the Figma data
+16. For each element in your React component, comment which Figma node it corresponds to
+17. NO JSDoc comments or @typedef - these break React Live rendering
+18. Use proper JSX syntax - all style objects must be properly formatted
+19. Ensure all JSX attributes are complete and properly closed
+20. NO incomplete template literals or malformed style objects
+21. CRITICAL POSITIONING RULES - ROOT ELEMENT MUST BE VISIBLE:
     - ROOT ELEMENT: MUST use position: 'relative' or omit position entirely (defaults to static)
     - ROOT ELEMENT: NEVER use position: 'absolute' on the outermost/parent element
     - ROOT ELEMENT: NEVER include left, top, right, bottom, or transform properties
@@ -341,7 +359,13 @@ ${JSON.stringify(figmaNode, null, 2)}
 
     console.log('OpenAI API response:', response.status);
     const output = response.data.choices[0].message.content;
-    return output;
+    
+    // Return the AI output with component detection and Figma node data
+    return {
+      output: output,
+      componentDetection: componentDetection,
+      figmaNode: figmaNode
+    };
   } catch (error) {
     console.error('❌ Error calling OpenAI:', error.response?.data || error.message);
     throw error;
