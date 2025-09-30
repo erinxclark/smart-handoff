@@ -447,6 +447,40 @@ graph TD
 
 ---
 
+## 🔧 **Critical Technical Challenges Solved**
+
+### **Challenge 1: GROUP vs FRAME Handling**
+**Problem**: Figma GROUPs have no fills/backgrounds themselves - all styling lives in their children. This is fundamentally different from FRAMEs which have their own properties.
+
+**Our solution**: 
+- Detect when `node.type === "GROUP"`
+- Common pattern: GROUP contains RECTANGLE (background) + TEXT (label)
+- Extract dimensions from RECTANGLE.absoluteBoundingBox
+- Extract background from RECTANGLE.fills[0].color
+- Extract text from TEXT.characters (NOT TEXT.name)
+- Generate semantic HTML using children's combined properties
+
+### **Challenge 2: Positioning Algorithm Fix**
+**Problem**: Root elements were rendering with `position: absolute` and `left/top` values, causing them to render off-screen.
+
+**Our solution** (`fixPositioningIssues()` in App.js):
+- Only fix the FIRST div (root element)
+- Remove position: absolute, left, top from root only
+- Add position: relative to root
+- Keep all children's positioning intact
+
+### **Challenge 3: Text Content Extraction**
+**Problem**: Figma has `node.name` (layer name) and `node.characters` (actual text). AI was using the wrong one.
+
+**Our solution**: Explicitly instruct AI to IGNORE `node.name` and ALWAYS USE `node.characters` for display text.
+
+### **Challenge 4: React Live Syntax Limitations**
+**Problem**: React Live breaks with event handlers like `onClick={() => {}}`.
+
+**Our solution**: Generate preview components without event handlers (NO onClick, onSubmit, onChange). These are visual previews, not functional components.
+
+---
+
 ## 🎯 **Advanced Features Deep Dive**
 
 ### **1. Multi-Element Layout Processing**
@@ -658,6 +692,46 @@ const accessibleButton = `
 - "We understand design intent and generate semantic, accessible components"
 - "AI-powered visual comparison provides quality assurance"
 - "Design token extraction creates design system foundations"
+
+### **"Why doesn't it handle complex nested components?"**
+- "I prioritized the 80/20 - these simple components are what developers build most often"
+- "Solving GROUPs vs FRAMEs and positioning was already non-trivial"
+- "Better to perfect fundamentals than ship buggy complex features"
+
+### **"What was the hardest technical problem you solved?"**
+- "GROUP vs FRAME distinction - GROUPs have no styling properties themselves"
+- "Had to detect patterns and extract styling from children instead"
+- "The positioning algorithm - preventing absolute positioning on root elements"
+- "Getting AI to use node.characters instead of node.name for text"
+
+---
+
+## ⚠️ **Scope & Known Limitations**
+
+### **Working Component Types (Demo-Ready)**
+✅ Primary buttons (GROUP: RECTANGLE + TEXT pattern)
+✅ Badges (small pill-shaped elements)
+✅ Input fields (rectangle with border)
+✅ Horizontal/vertical alignment (multiple rectangles)
+✅ Grid layouts (2x2 rectangles)
+
+### **Known Limitations (Strategic Scope Decisions)**
+❌ Complex nested structures (cards with 3+ levels of nesting)
+❌ Deeply nested content (beyond 3 hierarchical levels)
+⚠️ GROUP pattern dependency (GROUPs must follow RECTANGLE + TEXT pattern)
+
+**Why**: Strategic prioritization. These 6 component types cover 80% of real design handoff scenarios. Complex nested layouts are Phase 2 roadmap items.
+
+### **Demo Strategy**
+**What NOT to Demo:**
+- Cards or complex nested structures
+- Anything requiring regeneration to work
+- Components outside the 6 demo-ready types
+
+**Handling Limitation Questions:**
+- "I prioritized the components developers code most frequently"
+- "These simple components represent 80% of actual handoff work"
+- "Complex nested layouts are roadmap items - wanted to perfect the fundamentals first"
 
 ---
 
