@@ -232,497 +232,87 @@ CONTENT EXTRACTION RULES:
   * No text → <button>Button Text</button>
   * No text → <div>Content</div>
 
-CRITICAL TEXT EXTRACTION BUG FIX:
+SIMPLE COMPONENT GENERATION RULES:
 
-MANDATORY EXTRACTION RULES:
-
-1. For TEXT nodes:
-   - IGNORE node.name (it's just the layer name in Figma)
-   - USE node.characters (the actual text content to display)
-   - Example: node.name = "Header Text" but node.characters = "Welcome Back"
-   → Display "Welcome Back", not "Header Text"
-
-2. For FRAME/GROUP nodes:
-   - IGNORE node.name (it's just the layer name)
-   - RECURSIVELY analyze node.children
-   - Extract all nested TEXT.characters and nested button patterns
-   - Never display the frame name as content
-
-3. For nested buttons (GROUP inside FRAME):
-   - Detect: GROUP with RECTANGLE + TEXT children
-   - Extract button text from the TEXT child's characters field
-   - Don't use the GROUP name
-
-STEP-BY-STEP EXTRACTION:
-
-For this Figma structure, walk through EVERY child recursively:
-
-1. For each child in node.children:
+1. BUTTON PATTERN (GROUP with RECTANGLE + TEXT):
    
-   If child.type === "TEXT":
-   - Extract ACTUAL text from child.characters (NOT child.name!)
-   - Get fontSize from child.style.fontSize
-   - Get fontWeight from child.style.fontWeight
-   - Get color from child.fills[0].color
+   If node is a GROUP and has 2 children where:
+   - One child is type RECTANGLE
+   - One child is type TEXT
    
-   - Determine semantic element:
-     * If fontSize > 20: Generate <h2>child.characters</h2>
-     * Otherwise: Generate <p>child.characters</p>
+   Extract from children array:
+   - Rectangle child: children.find(c => c.type === "RECTANGLE")
+   - Text child: children.find(c => c.type === "TEXT")
    
-   If child.type === "FRAME" or child.type === "GROUP":
-   - DON'T render the frame name
-   - Instead, analyze its children recursively
+   Generate:
+   <button style={{
+     position: 'relative',
+     width: '[rectangle.absoluteBoundingBox.width]px',
+     height: '[rectangle.absoluteBoundingBox.height]px',
+     backgroundColor: '[convert rectangle.fills[0].color to hex]',
+     borderRadius: '[rectangle.cornerRadius]px',
+     border: 'none',
+     color: '[convert text.fills[0].color to hex]',
+     fontSize: '[text.style.fontSize]px',
+     fontWeight: [text.style.fontWeight],
+     cursor: 'pointer',
+     boxShadow: '[convert rectangle.effects to CSS]'
+   }}>
+     [text.characters]
+   </button>
+
+2. SINGLE TEXT ELEMENT:
    
-   - Check if this frame contains a button pattern:
-     * Look for GROUP with RECTANGLE + TEXT children
-     * If found, extract button from the GROUP
-     * Use TEXT child's characters field for button text
-     * Generate <button>child.characters</button> (NOT group name!)
+   If node is just a TEXT element:
+   <div style={{
+     fontSize: '[node.style.fontSize]px',
+     fontWeight: [node.style.fontWeight],
+     color: '[convert node.fills[0].color to hex]'
+   }}>
+     [node.characters]
+   </div>
+
+3. SIMPLE RECTANGLE:
    
-   - Otherwise, recurse into children and analyze each grandchild
+   If node is just a RECTANGLE:
+   <div style={{
+     width: '[node.absoluteBoundingBox.width]px',
+     height: '[node.absoluteBoundingBox.height]px',
+     backgroundColor: '[convert node.fills[0].color to hex]',
+     borderRadius: '[node.cornerRadius]px'
+   }}></div>
 
-CONCRETE EXAMPLE:
-
-Input:
-{
-  type: "FRAME",
-  children: [
-    {
-      type: "TEXT",
-      name: "Card Title",           // ← IGNORE THIS (layer name)
-      characters: "Welcome Back",   // ← USE THIS (actual text)
-      style: { fontSize: 18, fontWeight: 700 }
-    },
-    {
-      type: "TEXT", 
-      name: "Description",          // ← IGNORE THIS (layer name)
-      characters: "Your dashboard awaits",  // ← USE THIS (actual text)
-      style: { fontSize: 14, fontWeight: 400 }
-    },
-    {
-      type: "FRAME",
-      name: "Frame 1",              // ← IGNORE THIS, dig into children
-      children: [
-        {
-          type: "GROUP",
-          name: "Primary Button",   // ← IGNORE THIS (layer name)
-          children: [
-            {
-              type: "RECTANGLE",
-              fills: [{ color: { r: 0.4, g: 0.6, b: 1 }}],
-              cornerRadius: 8
-            },
-            {
-              type: "TEXT",
-              name: "Button Text",  // ← IGNORE THIS (layer name)
-              characters: "Get Started"  // ← USE THIS (actual text)
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-
-CORRECT Output:
-<div style={{ card styles }}>
-  <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Welcome Back</h2>
-  <p style={{ fontSize: '14px', fontWeight: 400 }}>Your dashboard awaits</p>
-  <button style={{ button styles }}>Get Started</button>
-</div>
-
-WRONG Output (what you were doing):
-<div>
-  <div>Card Title</div>
-  <div>Description</div>
-  <div>Frame 1</div>
-  <div>Primary Button</div>
-</div>
-
-NEVER use node.name as display content. ALWAYS use node.characters for TEXT nodes.
-
-ANALYZE THE FIGMA NODE STRUCTURE CAREFULLY:
-
-1. Look at node.type and node.children
-2. If node is a GROUP with:
-   - One RECTANGLE child (the visual container)
-   - One TEXT child (the label)
-   → This is a BUTTON component
-
-3. Extract values from the ACTUAL children:
+4. COMPLEX STRUCTURES (FRAMES with many children):
    
-   From RECTANGLE child:
-   - width: use child.absoluteBoundingBox.width + 'px'
-   - height: use child.absoluteBoundingBox.height + 'px'
-   - backgroundColor: convert child.fills[0].color to hex
-   - borderRadius: use child.cornerRadius + 'px'
-   - boxShadow: convert child.effects to CSS shadow
-   
-   From TEXT child:
-   - Button text: use child.characters EXACTLY (NOT child.name!)
-   - color: convert child.fills[0].color to hex
-   - fontSize: use child.style.fontSize + 'px'
-   - fontWeight: use child.style.fontWeight
-
-4. Generate ONLY a button element:
-
-<button
-  style={{
-    position: 'relative',
-    width: '[EXACT width from RECTANGLE]',
-    height: '[EXACT height from RECTANGLE]',
-    backgroundColor: '[EXACT color from RECTANGLE fills]',
-    borderRadius: '[EXACT cornerRadius from RECTANGLE]',
-    border: 'none',
-    color: '[EXACT color from TEXT fills]',
-    fontSize: '[EXACT fontSize from TEXT style]',
-    fontWeight: [EXACT fontWeight from TEXT style],
-    cursor: 'pointer',
-    boxShadow: '[converted from RECTANGLE effects]'
-  }}
->
-  [EXACT characters from TEXT child]
-</button>
+   DO NOT attempt to analyze deeply.
+   Generate a placeholder:
+   <div style={{
+     width: '[node.absoluteBoundingBox.width]px',
+     height: '[node.absoluteBoundingBox.height]px',
+     backgroundColor: '#FFFFFF',
+     borderRadius: '12px',
+     padding: '16px'
+   }}>
+     <!-- Complex component - requires manual implementation -->
+   </div>
 
 DO NOT:
-- Make up content like "Card Title" or "Card Content"
-- Add h1, p, or other elements that don't exist in Figma
-- Generate articles or cards for simple button structures
-- Use placeholder text - use EXACT Figma data
-- Ignore the children array
+- Try to recursively analyze nested structures
+- Generate cards with fake content
+- Attempt to extract from 3+ levels deep
+- Make up content that doesn't exist
 
-If you see a GROUP with RECTANGLE + TEXT children, generate a BUTTON.
-If you see a FRAME with multiple complex children, then generate a card/article.
+DO:
+- Focus on simple, single-level patterns
+- Use EXACT values from Figma data
+- Generate working code for buttons, badges, basic elements
+- Acknowledge complexity limits
 
-Stop overthinking this. Match the structure to what's actually in Figma.
+This is intentionally simple. Complex nested components are out of scope.
 
-PATTERN RECOGNITION RULES:
 
-Analyze the Figma node structure using these patterns:
 
-PATTERN 1: BUTTON
-Identifies as: GROUP or FRAME containing RECTANGLE + TEXT
-Characteristics:
-- Has exactly 2 children (or RECTANGLE + TEXT among children)
-- RECTANGLE child: solid fill, cornerRadius > 0, width 60-400px, height 30-80px
-- TEXT child: contains actual text in "characters" field
-- RECTANGLE and TEXT are roughly same size (TEXT inside RECTANGLE bounds)
 
-Generate:
-<button style={{
-  width: '[RECTANGLE.width]px',
-  height: '[RECTANGLE.height]px',
-  backgroundColor: '[RECTANGLE.fills[0] as hex]',
-  borderRadius: '[RECTANGLE.cornerRadius]px',
-  border: 'none',
-  color: '[TEXT.fills[0] as hex]',
-  fontSize: '[TEXT.style.fontSize]px',
-  fontWeight: [TEXT.style.fontWeight],
-  cursor: 'pointer',
-  boxShadow: '[RECTANGLE.effects to CSS]'
-}}>
-  [TEXT.characters]
-</button>
-
-PATTERN 2: BADGE
-Identifies as: Small rounded element with text
-Characteristics:
-- RECTANGLE or FRAME with cornerRadius > height/3 (pill-shaped)
-- Width < 150px, Height < 50px
-- Has TEXT child with short text (< 15 characters)
-- High cornerRadius relative to size
-
-Generate:
-<span style={{
-  display: 'inline-block',
-  padding: '4px 12px',
-  backgroundColor: '[RECTANGLE.fills[0] as hex]',
-  borderRadius: '[RECTANGLE.cornerRadius]px',
-  color: '[TEXT.fills[0] as hex]',
-  fontSize: '[TEXT.style.fontSize]px',
-  fontWeight: [TEXT.style.fontWeight]
-}}>
-  [TEXT.characters]
-</span>
-
-CRITICAL EXTRACTION STEPS:
-
-Step 1: Identify the pattern
-- Count children
-- Check dimensions
-- Look for RECTANGLE + TEXT combination
-- Calculate cornerRadius ratio
-
-Step 2: Extract exact values from children
-Rectangle child data:
-  width: use child.absoluteBoundingBox.width
-  height: use child.absoluteBoundingBox.height
-  background: convert child.fills[0].color to hex
-  cornerRadius: use child.cornerRadius
-  effects: use child.effects
-
-Text child data:
-  content: use child.characters EXACTLY (NOT child.name!)
-  color: convert child.fills[0].color to hex
-  fontSize: use child.style.fontSize
-  fontWeight: use child.style.fontWeight
-
-Step 3: Generate appropriate element
-- Use <button> for PATTERN 1
-- Use <span> for PATTERN 2
-- Use actual extracted values, NOT placeholders
-
-EXAMPLE INPUT (Button):
-{
-  type: "GROUP",
-  name: "Primary Button",
-  children: [
-    {
-      type: "RECTANGLE",
-      absoluteBoundingBox: { width: 140, height: 44 },
-      fills: [{ color: { r: 0.23, g: 0.51, b: 0.96 }}],
-      cornerRadius: 8,
-      effects: [{ type: "DROP_SHADOW", radius: 8 }]
-    },
-    {
-      type: "TEXT",
-      characters: "Submit",
-      fills: [{ color: { r: 1, g: 1, b: 1 }}],
-      style: { fontSize: 16, fontWeight: 600 }
-    }
-  ]
-}
-
-CORRECT OUTPUT:
-<button style={{
-  position: 'relative',
-  width: '140px',
-  height: '44px',
-  backgroundColor: '#3b82f6',
-  borderRadius: '8px',
-  border: 'none',
-  color: '#ffffff',
-  fontSize: '16px',
-  fontWeight: 600,
-  cursor: 'pointer',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-}}>
-  Submit
-</button>
-
-WRONG OUTPUT (what you were doing):
-<article>
-  <h1>Card Title</h1>
-  <button>Submit</button>
-</article>
-
-The key is: MATCH THE PATTERN, EXTRACT THE DATA, GENERATE THE RIGHT ELEMENT.
-
-If it's a GROUP with RECTANGLE + TEXT, it's almost always a button or badge.
-If it's a FRAME with 5+ children and complex layout, it's a card/container.
-
-BE PRECISE. USE ACTUAL FIGMA DATA. DON'T MAKE THINGS UP.
-
-SPECIAL HANDLING FOR FIGMA GROUPS:
-
-When node.type === "GROUP":
-
-1. Check if this is a "visual component GROUP":
-   - Has 2 children: RECTANGLE and TEXT
-   - RECTANGLE has fills (it's the visual background)
-   - TEXT has characters (it's the label)
-   → This is a BUTTON component wrapped in a GROUP
-
-2. Extract visual properties from the RECTANGLE child, not the GROUP:
-   - Width/Height: Use RECTANGLE child dimensions
-   - Background: Use RECTANGLE child fills[0]
-   - Border radius: Use RECTANGLE child cornerRadius
-   - Shadow: Use RECTANGLE child effects
-   
-3. Extract text properties from TEXT child:
-   - Content: Use TEXT child characters field
-   - Color: Use TEXT child fills[0]
-   - Font size: Use TEXT child style.fontSize
-   - Font weight: Use TEXT child style.fontWeight
-
-4. Generate a <button> element:
-   - DO NOT create wrapper divs
-   - DO NOT use the GROUP's dimensions (they might be empty/wrong)
-   - USE the RECTANGLE child's dimensions and styling
-   - USE the TEXT child's content and styling
-
-EXAMPLE:
-
-Input GROUP structure:
-{
-  type: "GROUP",
-  name: "Primary Button",
-  absoluteBoundingBox: { x: 94, y: -677, width: 140, height: 44 },
-  fills: [],  // Empty - GROUP has no background!
-  children: [
-    {
-      id: "1:21",
-      type: "RECTANGLE",
-      name: "Background",
-      absoluteBoundingBox: { width: 140, height: 44 },
-      fills: [{ color: { r: 0.23, g: 0.51, b: 0.96 }}],
-      cornerRadius: 8,
-      effects: [{ type: "DROP_SHADOW", radius: 8 }]
-    },
-    {
-      id: "1:22", 
-      type: "TEXT",
-      name: "Submit",
-      characters: "Submit",
-      fills: [{ color: { r: 1, g: 1, b: 1 }}],
-      style: { fontSize: 16, fontWeight: 600 }
-    }
-  ]
-}
-
-Correct interpretation:
-"This is a button. Get styles from RECTANGLE child, text from TEXT child."
-
-Generate:
-<button style={{
-  position: 'relative',
-  width: '140px',  // from children[0] (RECTANGLE)
-  height: '44px',  // from children[0] (RECTANGLE)
-  backgroundColor: '#3b82f6',  // from children[0].fills
-  borderRadius: '8px',  // from children[0].cornerRadius
-  border: 'none',
-  color: '#ffffff',  // from children[1].fills (TEXT)
-  fontSize: '16px',  // from children[1].style.fontSize
-  fontWeight: 600,  // from children[1].style.fontWeight
-  cursor: 'pointer',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'  // from children[0].effects
-}}>
-  Submit  // from children[1].characters
-</button>
-
-KEY INSIGHT FOR GROUPS:
-The visual styling is in the CHILDREN, not the GROUP itself.
-Always look at the RECTANGLE child for visual properties.
-Always look at the TEXT child for content.
-
-When node.type === "FRAME":
-FRAMEs often have their own fills and properties.
-Can extract styles from the FRAME itself or its children.
-More straightforward.
-
-DETECTION LOGIC:
-if (node.type === "GROUP" && 
-    node.children?.length === 2 &&
-    node.children[0].type === "RECTANGLE" &&
-    node.children[1].type === "TEXT") {
-  // This is a button - extract from children
-  const background = node.children[0];
-  const text = node.children[1];
-  // Generate button using background + text properties
-}
-
-DEEP STRUCTURE ANALYSIS:
-
-When analyzing a component, look at ALL levels of nesting, not just immediate children.
-
-For each child in node.children:
-1. Identify what it is:
-   - If child.type === "TEXT" → extract child.characters (actual text content)
-   - If child.type === "RECTANGLE" alone → it's a visual element/divider
-   - If child.type === "GROUP" with RECTANGLE + TEXT → it's a button (analyze recursively)
-   - If child.type === "FRAME" → it's a container (analyze its children recursively)
-
-2. Extract actual values, not placeholders:
-   - TEXT elements: Use child.characters field for EXACT content
-   - Nested buttons: Recursively extract RECTANGLE + TEXT pattern
-   - Layouts: Preserve the hierarchy and positioning
-
-EXAMPLE NESTED STRUCTURE:
-
-{
-  type: "FRAME",
-  name: "Card",
-  children: [
-    {
-      type: "TEXT",
-      name: "Card Header",
-      characters: "Welcome Back"  // ACTUAL TEXT - use this!
-    },
-    {
-      type: "TEXT", 
-      name: "Description",
-      characters: "Your dashboard awaits"  // ACTUAL TEXT - use this!
-    },
-    {
-      type: "GROUP",
-      name: "CTA Button",
-      children: [
-        {
-          type: "RECTANGLE",
-          fills: [{ color: { r: 0.23, g: 0.51, b: 0.96 }}]
-        },
-        {
-          type: "TEXT",
-          characters: "Get Started"  // ACTUAL BUTTON TEXT - use this!
-        }
-      ]
-    }
-  ]
-}
-
-CORRECT OUTPUT:
-<div style={{ ... card styles ... }}>
-  <h2>Welcome Back</h2>
-  <p>Your dashboard awaits</p>
-  <button style={{ ... button styles ... }}>
-    Get Started
-  </button>
-</div>
-
-WRONG OUTPUT (what you're currently doing):
-<div>
-  <h2>Card Title</h2>
-  <p>Card Content</p>
-  <button>Button Text</button>
-</div>
-
-RECURSIVE EXTRACTION ALGORITHM:
-
-function analyzeNode(node) {
-  if (node.type === "TEXT") {
-    return {
-      element: "text",
-      content: node.characters,  // EXACT text
-      fontSize: node.style.fontSize,
-      color: convertColor(node.fills[0].color)
-    };
-  }
-  
-  if (node.type === "GROUP" && hasButtonPattern(node.children)) {
-    const rect = node.children.find(c => c.type === "RECTANGLE");
-    const text = node.children.find(c => c.type === "TEXT");
-    return {
-      element: "button",
-      text: text.characters,  // EXACT button text
-      styles: extractFromRectangle(rect)
-    };
-  }
-  
-  if (node.type === "FRAME" || node.type === "GROUP") {
-    return {
-      element: "container",
-      children: node.children.map(child => analyzeNode(child))  // RECURSIVE
-    };
-  }
-}
-
-Apply this recursively to the entire structure.
-
-CRITICAL RULES:
-1. NEVER use placeholder text like "Card Title", "Card Content", "Button Text"
-2. ALWAYS extract from node.characters for TEXT elements
-3. ALWAYS analyze children recursively for nested structures
-4. PRESERVE the actual content hierarchy from Figma
 
 ACCESSIBILITY REQUIREMENTS:
 - Component type: ${componentDetection.componentType}
@@ -956,52 +546,21 @@ Respond in this format:
 <your component code here>
 \`\`\`
 
-USE THE EXACT VALUES FROM CHILDREN, DO NOT MAKE UP CONTENT.
+Component Type: ${figmaNode.type}
+Dimensions: ${figmaNode.absoluteBoundingBox?.width} x ${figmaNode.absoluteBoundingBox?.height}
+Children Count: ${figmaNode.children?.length || 0}
 
-Children details:
-${safeNode.children?.map(child => `
-  Child ${child.id}:
-  - Type: ${child.type}
-  - Name: ${child.name}
-  ${child.type === 'TEXT' ? `- Text content: "${child.characters}"` : ''}
-  ${child.type === 'RECTANGLE' ? `- Background: ${JSON.stringify(child.fills?.[0]?.color)}` : ''}
-  - Dimensions: ${child.absoluteBoundingBox?.width} x ${child.absoluteBoundingBox?.height}
-`).join('\n') || 'No children'}
+${figmaNode.children?.length <= 2 ? `
+Children Data:
+${figmaNode.children.map(c => `
+  - Type: ${c.type}
+  - Characters: ${c.characters || 'N/A'}
+  - Dimensions: ${c.absoluteBoundingBox?.width} x ${c.absoluteBoundingBox?.height}
+  - Fills: ${JSON.stringify(c.fills?.[0]?.color)}
+`).join('\n')}
+` : 'Too many children - generate placeholder'}
 
-Figma Children Data:
-${JSON.stringify(safeNode.children?.map(c => ({
-  type: c.type,
-  name: c.name,
-  characters: c.characters,
-  absoluteBoundingBox: c.absoluteBoundingBox,
-  fills: c.fills,
-  cornerRadius: c.cornerRadius,
-  effects: c.effects,
-  style: c.style
-})), null, 2) || 'No children'}
-
-CRITICAL REMINDER: 
-- For TEXT nodes: Use the 'characters' field for actual text content
-- For FRAME/GROUP nodes: Analyze children recursively, ignore the node name
-- NEVER use 'name' field as display content - it's just the Figma layer name
-
-Now follow the pattern recognition rules above to generate the correct component.
-
-Full Component Tree (for deep recursive analysis):
-${JSON.stringify(safeNode, (key, value) => {
-  // Include important fields for deep analysis
-  if (key === 'children' || key === 'characters' || key === 'type' || 
-      key === 'name' || key === 'fills' || key === 'style' || 
-      key === 'absoluteBoundingBox' || key === 'cornerRadius' || key === 'effects') {
-    return value;
-  }
-  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-    return undefined; // Skip other nested objects
-  }
-  return value;
-}, 2)}
-
-Analyze this ENTIRE tree recursively and extract ACTUAL content at every level.
+Generate simple, working code following the rules above.
 
 Figma Node (safe data only):
 ${JSON.stringify({
