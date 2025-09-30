@@ -308,6 +308,39 @@ DO:
 
 This is intentionally simple. Complex nested components are out of scope.
 
+SPECIAL HANDLING FOR GROUPS vs FRAMES:
+
+When node.type === "GROUP":
+- GROUPs typically have no fills/background themselves
+- The visual styling is in the CHILDREN, not the GROUP
+- Common pattern: GROUP contains RECTANGLE (background) + TEXT (label)
+
+For GROUP with 2 children (RECTANGLE + TEXT):
+1. Find the RECTANGLE child: const rect = node.children.find(c => c.type === "RECTANGLE")
+2. Find the TEXT child: const text = node.children.find(c => c.type === "TEXT")
+3. Extract dimensions from RECTANGLE.absoluteBoundingBox
+4. Extract background color from RECTANGLE.fills[0].color
+5. Extract border radius from RECTANGLE.cornerRadius
+6. Extract shadow from RECTANGLE.effects
+7. Extract text content from TEXT.characters
+8. Extract text styling from TEXT.style and TEXT.fills
+
+When node.type === "FRAME":
+- FRAMEs can have their own fills and properties
+- Can extract styles from the FRAME itself
+- More straightforward
+
+Example GROUP structure:
+{
+  type: "GROUP",
+  children: [
+    { type: "RECTANGLE", fills: [...], cornerRadius: 8 },
+    { type: "TEXT", characters: "Submit", style: {...} }
+  ]
+}
+
+Generate button using CHILDREN properties, not GROUP properties.
+
 
 
 
