@@ -1,3 +1,11 @@
+/**
+ * Smart Handoff - AI-Powered Figma to React Converter
+ * Copyright (c) 2024 Erin Clark
+ * 
+ * This software converts Figma designs into React components with
+ * live preview, accessibility enhancement, and design token extraction.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
