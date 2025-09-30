@@ -232,6 +232,133 @@ CONTENT EXTRACTION RULES:
   * No text → <button>Button Text</button>
   * No text → <div>Content</div>
 
+CRITICAL TEXT EXTRACTION BUG FIX:
+
+MANDATORY EXTRACTION RULES:
+
+1. For TEXT nodes:
+   - IGNORE node.name (it's just the layer name in Figma)
+   - USE node.characters (the actual text content to display)
+   - Example: node.name = "Header Text" but node.characters = "Welcome Back"
+   → Display "Welcome Back", not "Header Text"
+
+2. For FRAME/GROUP nodes:
+   - IGNORE node.name (it's just the layer name)
+   - RECURSIVELY analyze node.children
+   - Extract all nested TEXT.characters and nested button patterns
+   - Never display the frame name as content
+
+3. For nested buttons (GROUP inside FRAME):
+   - Detect: GROUP with RECTANGLE + TEXT children
+   - Extract button text from the TEXT child's characters field
+   - Don't use the GROUP name
+
+STEP-BY-STEP EXTRACTION:
+
+For this Figma structure, walk through EVERY child recursively:
+
+node.children.forEach(child => {
+  
+  if (child.type === "TEXT") {
+    // Extract ACTUAL text
+    const textContent = child.characters;  // NOT child.name!
+    const fontSize = child.style?.fontSize;
+    const fontWeight = child.style?.fontWeight;
+    const color = child.fills?.[0]?.color;
+    
+    // Determine semantic element
+    if (fontSize > 20) {
+      return `<h2>${textContent}</h2>`;
+    } else {
+      return `<p>${textContent}</p>`;
+    }
+  }
+  
+  if (child.type === "FRAME" || child.type === "GROUP") {
+    // DON'T render the frame name
+    // Instead, analyze its children recursively
+    
+    // Check if this frame contains a button pattern
+    const hasButtonPattern = child.children?.some(grandchild =>
+      grandchild.type === "GROUP" &&
+      grandchild.children?.some(c => c.type === "RECTANGLE") &&
+      grandchild.children?.some(c => c.type === "TEXT")
+    );
+    
+    if (hasButtonPattern) {
+      // Find the button group
+      const buttonGroup = child.children.find(/* button pattern */);
+      const buttonText = buttonGroup.children.find(c => c.type === "TEXT");
+      const buttonRect = buttonGroup.children.find(c => c.type === "RECTANGLE");
+      
+      return `<button>${buttonText.characters}</button>`;  // NOT buttonGroup.name!
+    }
+    
+    // Otherwise, recurse into children
+    return child.children.map(grandchild => analyzeNode(grandchild));
+  }
+});
+
+CONCRETE EXAMPLE:
+
+Input:
+{
+  type: "FRAME",
+  children: [
+    {
+      type: "TEXT",
+      name: "Card Title",           // ← IGNORE THIS (layer name)
+      characters: "Welcome Back",   // ← USE THIS (actual text)
+      style: { fontSize: 18, fontWeight: 700 }
+    },
+    {
+      type: "TEXT", 
+      name: "Description",          // ← IGNORE THIS (layer name)
+      characters: "Your dashboard awaits",  // ← USE THIS (actual text)
+      style: { fontSize: 14, fontWeight: 400 }
+    },
+    {
+      type: "FRAME",
+      name: "Frame 1",              // ← IGNORE THIS, dig into children
+      children: [
+        {
+          type: "GROUP",
+          name: "Primary Button",   // ← IGNORE THIS (layer name)
+          children: [
+            {
+              type: "RECTANGLE",
+              fills: [{ color: { r: 0.4, g: 0.6, b: 1 }}],
+              cornerRadius: 8
+            },
+            {
+              type: "TEXT",
+              name: "Button Text",  // ← IGNORE THIS (layer name)
+              characters: "Get Started"  // ← USE THIS (actual text)
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+CORRECT Output:
+<div style={{ card styles }}>
+  <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Welcome Back</h2>
+  <p style={{ fontSize: '14px', fontWeight: 400 }}>Your dashboard awaits</p>
+  <button style={{ button styles }}>Get Started</button>
+</div>
+
+WRONG Output (what you were doing):
+<div>
+  <div>Card Title</div>
+  <div>Description</div>
+  <div>Frame 1</div>
+  <div>Primary Button</div>
+</div>
+
+NEVER use node.name as display content. ALWAYS use node.characters for TEXT nodes.
+
 ANALYZE THE FIGMA NODE STRUCTURE CAREFULLY:
 
 1. Look at node.type and node.children
@@ -250,7 +377,7 @@ ANALYZE THE FIGMA NODE STRUCTURE CAREFULLY:
    - boxShadow: convert child.effects to CSS shadow
    
    From TEXT child:
-   - Button text: use child.characters EXACTLY
+   - Button text: use child.characters EXACTLY (NOT child.name!)
    - color: convert child.fills[0].color to hex
    - fontSize: use child.style.fontSize + 'px'
    - fontWeight: use child.style.fontWeight
@@ -353,7 +480,7 @@ Rectangle child data:
   effects: use child.effects
 
 Text child data:
-  content: use child.characters EXACTLY
+  content: use child.characters EXACTLY (NOT child.name!)
   color: convert child.fills[0].color to hex
   fontSize: use child.style.fontSize
   fontWeight: use child.style.fontWeight
@@ -870,6 +997,11 @@ ${JSON.stringify(safeNode.children?.map(c => ({
   effects: c.effects,
   style: c.style
 })), null, 2) || 'No children'}
+
+CRITICAL REMINDER: 
+- For TEXT nodes: Use the 'characters' field for actual text content
+- For FRAME/GROUP nodes: Analyze children recursively, ignore the node name
+- NEVER use 'name' field as display content - it's just the Figma layer name
 
 Now follow the pattern recognition rules above to generate the correct component.
 
