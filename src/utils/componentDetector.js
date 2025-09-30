@@ -61,8 +61,7 @@ export function detectComponentPattern(figmaNode) {
     strokes = [],
     cornerRadius = 0,
     children = [],
-    name = '',
-    characters = ''
+    name = ''
   } = figmaNode;
 
   // Helper function to extract color from fill
@@ -318,6 +317,16 @@ export function detectComponentPattern(figmaNode) {
     let confidence = 0;
     const reasons = [];
 
+    // Name hint is REQUIRED for avatar detection (most important)
+    if (nameContainsType(name, 'avatar')) {
+      confidence += 40;
+      reasons.push('name contains "avatar"');
+    } else {
+      // Without name hint, avatar detection should be very low confidence
+      confidence -= 20;
+      return { confidence: Math.max(confidence, 0), reasons };
+    }
+
     // Square or circle
     const isSquare = Math.abs(width - height) <= 5;
     const isCircle = cornerRadius >= width / 2;
@@ -327,10 +336,13 @@ export function detectComponentPattern(figmaNode) {
       reasons.push(isCircle ? 'circular shape' : 'square shape');
     }
 
-    // Appropriate size (more restrictive for avatars)
+    // Very restrictive size for avatars
     if (width >= 32 && width <= 64 && height >= 32 && height <= 64) {
       confidence += 25;
       reasons.push('avatar-like size');
+    } else {
+      // Penalize if size is not typical for avatars
+      confidence -= 15;
     }
 
     // Has image fill or solid color
@@ -344,15 +356,6 @@ export function detectComponentPattern(figmaNode) {
     if (!textContent || textContent.length <= 2) {
       confidence += 15;
       reasons.push('minimal or no text content');
-    }
-
-    // Name hint (required for avatar detection)
-    if (nameContainsType(name, 'avatar')) {
-      confidence += 25;
-      reasons.push('name contains "avatar"');
-    } else {
-      // Reduce confidence if no name hint
-      confidence -= 10;
     }
 
     return { confidence, reasons };

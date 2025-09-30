@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { detectComponentPattern } from '../utils/componentDetector';
-import { generateImageJSX, getImageStyle } from '../utils/imageHandler';
-import { mapToComponentLibrary, generateImports } from '../utils/componentMapper';
+import { generateImageJSX } from '../utils/imageHandler';
+import { mapToComponentLibrary } from '../utils/componentMapper';
 
 const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 

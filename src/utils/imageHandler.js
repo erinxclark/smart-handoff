@@ -112,7 +112,6 @@ export function createImageFallback(width = 100, height = 100, type = 'generic')
 function createAvatarPlaceholder(width, height) {
   const size = Math.min(width, height);
   const radius = size / 2;
-  const fontSize = Math.max(12, size / 4);
   
   return `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -294,7 +293,7 @@ export function generateImageJSX(figmaNode, componentName = 'Component') {
     };
   }
 
-  const { fills = [], name = '', width = 100, height = 100 } = figmaNode;
+  const { fills = [], width = 100, height = 100 } = figmaNode;
   const imageFills = fills.filter(fill => fill.type === 'IMAGE');
   
   if (imageFills.length === 0) {

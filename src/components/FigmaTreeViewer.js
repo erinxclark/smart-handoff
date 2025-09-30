@@ -25,8 +25,7 @@
  *    - Maintains expanded/collapsed states
  */
 
-import React, { useState, useCallback } from 'react';
-import { useDebounce } from '../utils/cache';
+import React from 'react';
 
 const normalizeNode = (node) => {
   if (!node) return null;

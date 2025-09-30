@@ -108,8 +108,19 @@ const LiveCodePreview = ({ code, figmaPreviewUrl }) => {
       setCompareError(null);
       
       console.log('Starting comparison with html2canvas...');
+      console.log('Live preview ref:', livePreviewRef.current);
+      console.log('Figma preview URL:', figmaPreviewUrl);
       
       const previewElement = livePreviewRef.current;
+      
+      // Log element details for debugging
+      console.log('Preview element:', previewElement);
+      console.log('Element dimensions:', {
+        width: previewElement.offsetWidth,
+        height: previewElement.offsetHeight,
+        scrollWidth: previewElement.scrollWidth,
+        scrollHeight: previewElement.scrollHeight
+      });
       
       // Ensure the element has content
       if (previewElement.offsetWidth === 0 || previewElement.offsetHeight === 0) {
@@ -119,15 +130,17 @@ const LiveCodePreview = ({ code, figmaPreviewUrl }) => {
       const canvas = await html2canvas(previewElement, {
         useCORS: true,
         allowTaint: true,
-        logging: false,
+        logging: true, // Enable logging for debugging
         backgroundColor: '#ffffff',
         scale: 2, // Higher quality
       });
 
       const livePreviewUrl = canvas.toDataURL('image/png');
-      console.log('Canvas generated successfully');
+      console.log('Canvas generated successfully, size:', canvas.width, 'x', canvas.height);
+      console.log('Live preview data URL length:', livePreviewUrl.length);
       
       const diff = await compareVisuals(livePreviewUrl, figmaPreviewUrl);
+      console.log('Comparison result:', diff);
       setDifferences(diff);
     } catch (error) {
       console.error('Error comparing visuals:', error);
@@ -174,39 +187,38 @@ const LiveCodePreview = ({ code, figmaPreviewUrl }) => {
   // Legacy helper functions removed - now handled by SmartComponentRenderer
 
   return (
-    <div className="mt-6 p-4 bg-white rounded shadow w-full">
-      <h2 className="text-xl font-semibold mb-4">Preview Comparison</h2>
-      
+    <div className="w-full">
       <div className="grid grid-cols-2 gap-4">
         {/* React Preview */}
-        <div className="border rounded p-4">
+        <div>
           <h3 className="text-lg font-semibold mb-2">React Preview</h3>
-          <div ref={livePreviewRef} className="mt-2">
-            <SimpleLivePreview
-              code={code}
-              componentName={componentName}
-            />
-          </div>
+          <SimpleLivePreview
+            ref={livePreviewRef}
+            code={code}
+            componentName={componentName}
+          />
         </div>
 
         {/* Figma Preview */}
         {figmaPreviewUrl && (
-          <div className="border rounded p-4">
+          <div>
             <h3 className="text-lg font-semibold mb-2">Figma Preview</h3>
-            <div className="mt-2">
-              <img 
-                src={figmaPreviewUrl} 
-                alt="Figma Preview" 
-                className="w-full border rounded"
-              />
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden">
+              <div className="p-6 bg-gradient-to-br from-slate-50 to-white min-h-[300px] flex items-center justify-center">
+                <img 
+                  src={figmaPreviewUrl} 
+                  alt="Figma Preview" 
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Action Controls */}
-      <div className="mt-4 flex justify-center gap-4 flex-wrap">
-        {figmaPreviewUrl && (
+      {/* Compare Visuals Button */}
+      {figmaPreviewUrl && (
+        <div className="mt-4 flex justify-center">
           <button
             onClick={handleCompare}
             disabled={isComparing}
@@ -214,47 +226,8 @@ const LiveCodePreview = ({ code, figmaPreviewUrl }) => {
           >
             {isComparing ? 'Comparing...' : 'Compare Visuals'}
           </button>
-        )}
-        
-        {transformedCode && (
-          <button
-            onClick={handleDeploy}
-            disabled={isDeploying}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-          >
-            {isDeploying ? 'Deploying...' : '🚀 Deploy to CodeSandbox'}
-          </button>
-        )}
-        
-        {deploymentUrl && (
-          <div className="flex flex-col items-center gap-2">
-            <a
-              href={deploymentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-            >
-              🔗 Open Live Demo
-            </a>
-            {shareableLink && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={shareableLink}
-                  readOnly
-                  className="px-2 py-1 text-xs border rounded w-64"
-                />
-                <button
-                  onClick={() => navigator.clipboard.writeText(shareableLink)}
-                  className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
-                >
-                  Copy
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {compareError && (
         <div className="mt-4 p-4 bg-red-100 text-red-700 rounded">

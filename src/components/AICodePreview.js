@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LiveProvider, LiveError, LivePreview } from 'react-live';
 import { inlineStylesToTailwind } from '../utils/styleConverter';
@@ -9,13 +9,13 @@ import { inlineStylesToTailwind } from '../utils/styleConverter';
  * A production-ready component for rendering AI-generated React/JSX code.
  * Handles JSX transformation, error boundaries, and live preview updates.
  */
-const AICodePreview = ({ 
+const AICodePreview = forwardRef(({ 
   code, 
   componentName = 'Component',
   showCode = true,
   showPreview = true,
   className = ''
-}) => {
+}, ref) => {
   const [processedCode, setProcessedCode] = useState('');
   const [error, setError] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -154,6 +154,12 @@ const AICodePreview = ({
 
   // Process code when it changes
   useEffect(() => {
+    console.log('🔄 AICodePreview useEffect triggered', { 
+      hasCode: !!code, 
+      useTailwind, 
+      codeLength: code?.length 
+    });
+    
     if (!code || code.trim() === '') {
       setProcessedCode('');
       setTailwindCode('');
@@ -168,17 +174,25 @@ const AICodePreview = ({
 
     try {
       const preparedCode = prepareCodeForReactLive(code);
+      console.log('📝 Prepared code:', preparedCode?.substring(0, 100));
       
       if (preparedCode && preparedCode.trim() !== '') {
         // Store original prepared code
         setOriginalCode(preparedCode);
+        console.log('✅ Set original code');
         
         // Convert to Tailwind version
         const tailwindVersion = convertJSXStylesToTailwind(preparedCode);
         setTailwindCode(tailwindVersion);
+        console.log('🎨 Tailwind conversion:');
+        console.log('   Original:', preparedCode);
+        console.log('   Converted:', tailwindVersion);
+        console.log('   Are different:', preparedCode !== tailwindVersion);
         
         // Set the appropriate version based on toggle
-        setProcessedCode(useTailwind ? tailwindVersion : preparedCode);
+        const codeToUse = useTailwind ? tailwindVersion : preparedCode;
+        setProcessedCode(codeToUse);
+        console.log('✨ Set processed code to:', useTailwind ? 'TAILWIND' : 'INLINE', codeToUse.substring(0, 100));
         setError(null);
       } else {
         // Create a simple fallback JSX
@@ -207,7 +221,7 @@ const AICodePreview = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [code, useTailwind]);
+  }, [code, useTailwind, componentName]);
 
   // Show placeholder when no code is available
   if (!code || code.trim() === '') {
@@ -275,7 +289,10 @@ const AICodePreview = ({
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setUseTailwind(false)}
+                    onClick={() => {
+                      console.log('🔵 Clicked Inline button');
+                      setUseTailwind(false);
+                    }}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
                       !useTailwind 
                         ? 'bg-blue-500 text-white shadow-sm' 
@@ -287,7 +304,10 @@ const AICodePreview = ({
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setUseTailwind(true)}
+                    onClick={() => {
+                      console.log('🎨 Clicked Tailwind button');
+                      setUseTailwind(true);
+                    }}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
                       useTailwind 
                         ? 'bg-blue-500 text-white shadow-sm' 
@@ -355,30 +375,9 @@ const AICodePreview = ({
       {/* Live Preview */}
       {showPreview && (
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200/50 overflow-hidden">
-          {/* Preview Header */}
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-6 w-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-800">Live Preview</h3>
-              </div>
-              
-              {isProcessing && (
-                <div className="flex items-center gap-2 text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-                  <span className="text-sm font-medium">Processing...</span>
-                </div>
-              )}
-            </div>
-          </div>
           
           {/* Preview Content */}
-          <div className="p-6 bg-gradient-to-br from-slate-50 to-white min-h-[300px]">
+          <div className="p-6 bg-gradient-to-br from-slate-50 to-white min-h-[300px] flex items-center justify-center">
             {error ? (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -393,9 +392,9 @@ const AICodePreview = ({
                 </div>
                 <div className="text-sm font-mono bg-red-100 p-3 rounded-lg">{error}</div>
               </motion.div>
-            ) : processedCode ? (
+            ) : originalCode ? (
               <LiveProvider
-                code={processedCode}
+                code={originalCode}
                 noInline={false}
                 scope={{ React }}
               >
@@ -407,8 +406,8 @@ const AICodePreview = ({
                       setError(`React Live error: ${error.message}`);
                     }}
                   />
-                  <div className="min-h-[200px] flex items-center justify-center p-8 bg-white rounded-xl border-2 border-dashed border-slate-200">
-                    <LivePreview className="w-full" />
+                  <div ref={ref} className="w-full">
+                    <LivePreview />
                   </div>
                 </div>
               </LiveProvider>
@@ -434,6 +433,6 @@ const AICodePreview = ({
       )}
     </div>
   );
-};
+});
 
 export default AICodePreview;

@@ -149,7 +149,7 @@ function parseTextResponse(text) {
       
       // Start a new issue
       currentIssue = {
-        title: line.replace(/^[-*•#+\d\.]\s+/, '').trim(),
+        title: line.replace(/^[-*•#+\d.]\s+/, '').trim(),
         description: '',
         priority: 'medium' // Default priority
       };

@@ -50,7 +50,7 @@ export function mapToComponentLibrary(detectionResult, figmaNode, library = 'non
     };
   }
 
-  const { componentType, confidence } = detectionResult;
+  const { componentType } = detectionResult;
 
   // Decide whether to use library component or custom div
   const shouldUseLibrary = shouldUseLibraryComponent(detectionResult, library);
@@ -100,7 +100,7 @@ function mapToShadcn(componentType, figmaNode, detectionResult) {
  */
 function mapToShadcnButton(figmaNode, props) {
   const { text = 'Button', onClick = '() => {}' } = props;
-  const { width, height, fills = [] } = figmaNode;
+  const { height, fills = [] } = figmaNode;
   
   // Determine variant based on background color
   const variant = determineButtonVariant(fills);

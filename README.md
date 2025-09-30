@@ -4,31 +4,40 @@ An AI-powered tool for seamless design-to-development handoff that converts Figm
 
 ## Overview
 
-Smart Handoff revolutionizes the design-to-development workflow with a modern, optimized interface that prioritizes the live preview experience:
+Smart Handoff revolutionizes the design-to-development workflow with a modern, intuitive interface that maximizes productivity:
 
 - **AI-Powered Code Generation**: Automatically converts Figma designs into clean, production-ready React components
-- **Hero Live Preview**: Full-width live preview section with side-by-side Figma vs React comparison
-- **Compact Control Panel**: Streamlined 25% left panel with smart state management
-- **Intelligent Positioning**: Preserves Figma hierarchy with proper CSS positioning (relative containers, absolute children)
-- **Visual Comparison**: Core Compare Visuals functionality with CodeSandbox deployment
-- **Error Recovery**: AI-powered code analysis and positioning fixes for robust component generation
+- **Full-Width Live Preview**: Maximized preview section with side-by-side Figma vs React comparison
+- **Vertical Layout**: Optimized three-row layout prioritizing live preview space
+- **Intelligent Component Detection**: Automatic UI pattern recognition with library mapping
+- **Tailwind CSS Support**: Real-time toggle between inline styles and Tailwind classes
+- **Visual Comparison**: Built-in comparison tool with pixel-perfect analysis
+- **File Size Detection**: Smart warnings for large Figma files with performance recommendations
+- **Error Recovery**: AI-powered code analysis and automatic positioning fixes
 
 ## Key Features
 
 ### 1. Modern UI Layout & Experience
-- **Optimized 4-Column Grid**: 25% compact controls, 75% hero preview space
-- **Smart State Management**: Figma setup hides after connection, showing clean status indicators
-- **Top Row Efficiency**: Generated Code + Generate Code panels side-by-side for maximum workflow efficiency
-- **Hero Live Preview**: Full-width bottom section with Compare Visuals functionality
-- **Professional Design**: Modern gradients, smooth animations, and polished interface
+- **Three-Row Vertical Layout**: Optimized for maximum preview space
+  - **Row 1**: Figma connection, library selection, and file tree (collapses after connection)
+  - **Row 2**: Full-width Live Preview with React and Figma side-by-side comparison
+  - **Row 3**: Full-width Generated Code section with syntax highlighting
+- **Centered Component Preview**: Components are perfectly centered both horizontally and vertically
+- **Professional Design**: Modern gradients, smooth Framer Motion animations, and polished interface
 - **Responsive Layout**: Adapts beautifully to desktop, tablet, and mobile screens
-- **Maximum Preview Space**: 75% screen width dedicated to live preview and comparison
+- **Maximum Preview Space**: 100% width dedicated to live preview and comparison
+- **Clean Visual Design**: Matching preview boxes with gradient backgrounds and subtle shadows
 
-### 2. Figma Integration
-- Tree view of Figma document structure
-- Support for groups and frames
-- Preservation of visual hierarchy
-- Real-time design updates
+### 2. Figma Integration & Performance
+- **Interactive Tree View**: Browse and select components from Figma document structure
+- **File Size Detection**: Automatic node counting with smart warnings
+  - Yellow warning (>500 nodes): Performance notice
+  - Orange warning (>1000 nodes): Recommendation to select specific frames
+  - Red warning (>2000 nodes): Strong suggestion to use smaller files
+- **Node Count Display**: Shows total node count in success message (e.g., "File loaded: design.fig (245 nodes)")
+- **Continue Anyway Option**: Allows proceeding with large files if needed
+- **Support for Groups and Frames**: Handles nested structures with proper hierarchy
+- **Real-time Design Updates**: Fetches latest Figma thumbnails and metadata
 
 ### 3. Code Generation
 - Automatic React component generation
@@ -47,11 +56,19 @@ Smart Handoff revolutionizes the design-to-development workflow with a modern, o
 
 ### 5. Tailwind CSS Integration
 - **Dual Format Support**: Generate components with inline styles or Tailwind CSS classes
+- **Real-time Toggle**: Switch between formats with animated toggle buttons (Inline/Tailwind)
+- **Smart Code Display**: Code block updates instantly to show selected format
+- **Consistent Preview**: Live preview always renders correctly (uses inline styles internally)
 - **Smart Style Conversion**: Automatic conversion of CSS properties to Tailwind utilities
-- **Standard Value Mapping**: Common values converted to Tailwind standards (16px → p-4)
-- **Custom Value Support**: Arbitrary values preserved with Tailwind syntax (477px → w-[477px])
-- **Real-time Toggle**: Switch between inline styles and Tailwind CSS with radio buttons
-- **Mixed Style Support**: Handle partial conversions with both className and style attributes
+  - Dimensions: `width: '477px'` → `w-[477px]`
+  - Colors: `backgroundColor: '#44b24f'` → `bg-[#44b24f]`
+  - Borders: `border: '13px solid #000'` → `border-[13px] border-solid border-black`
+  - Spacing: `padding: '16px'` → `p-4` (standard values) or `p-[20px]` (custom)
+  - Layout: `display: 'flex', justifyContent: 'center'` → `flex justify-center`
+- **Standard Value Mapping**: Common values converted to Tailwind standards
+- **Custom Value Support**: Arbitrary values preserved with Tailwind JIT syntax
+- **Mixed Style Support**: Handles partial conversions with both className and style attributes
+- **Copy Either Format**: Copy button respects current toggle selection
 
 ### 6. Intelligent Positioning & Layout
 - **Hierarchy Preservation**: Maintains Figma's parent-child relationships

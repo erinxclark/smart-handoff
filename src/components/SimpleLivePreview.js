@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import AICodePreview from './AICodePreview';
 
 /**
@@ -7,9 +7,10 @@ import AICodePreview from './AICodePreview';
  * A wrapper around AICodePreview for rendering React code
  * from the CodeEditor with proper JSX transformation.
  */
-const SimpleLivePreview = ({ code, componentName = 'Component' }) => {
+const SimpleLivePreview = forwardRef(({ code, componentName = 'Component' }, ref) => {
   return (
     <AICodePreview 
+      ref={ref}
       code={code}
       componentName={componentName}
       showCode={false} // Don't show code block in this context
@@ -17,6 +18,6 @@ const SimpleLivePreview = ({ code, componentName = 'Component' }) => {
       className="min-h-[200px]"
     />
   );
-};
+});
 
 export default SimpleLivePreview;
